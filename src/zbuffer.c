@@ -120,14 +120,27 @@ static void ZB_copyBuffer(ZBuffer * zb,
 {
     unsigned char *p1;
     PIXEL *q;
-    int y, n;
+    int y;
+    #if !TGL_FEATURE_NO_COPY_COLOR
+    int n;
+    #endif
 
     q = zb->pbuf;
     p1 = buf;
+    #if !TGL_FEATURE_NO_COPY_COLOR
     n = zb->xsize * PSZB;
+    #endif
     for (y = 0; y < zb->ysize; y++) {
-	memcpy(p1, q, n);
-	p1 += linesize;
+    #if TGL_FEATURE_NO_COPY_COLOR
+		for(int i = 0; i < zb->xsize; i++)
+		{
+			if((*(q+i) & TGL_COLOR_MASK) != TGL_NO_COPY_COLOR)
+				*(((PIXEL*)p1) + i) = *(q+i);
+		}
+    #else
+		memcpy(p1, q, n);
+	#endif
+	p1 += linesize; //TODO make this a predictable behavior.
 	q = (PIXEL *) ((char *) q + zb->linesize);
     }
 }
@@ -158,28 +171,19 @@ static void ZB_copyFrameBufferRGB32(ZBuffer * zb,
 
     q = zb->pbuf;
     p1 = (unsigned int *) buf;
-
+	puts("\nBEING CALLED\n");
     for (y = 0; y < zb->ysize; y++) {
 	p = p1;
 	n = zb->xsize >> 2;
 	do {
 	    v = *(unsigned int *) q;
-#if BYTE_ORDER == BIG_ENDIAN
 	    RGB16_TO_RGB32(w1, w0, v);
-#else
-	    RGB16_TO_RGB32(w0, w1, v);
-#endif
 	    p[0] = w0;
 	    p[1] = w1;
-
 	    v = *(unsigned int *) (q + 2);
-#if BYTE_ORDER == BIG_ENDIAN
 	    RGB16_TO_RGB32(w1, w0, v);
-#else
-	    RGB16_TO_RGB32(w0, w1, v);
-#endif
 	    p[2] = w0;
-	    p[3] = w1;
+	    p[3] = 0;
 
 	    q += 4;
 	    p += 4;
@@ -265,7 +269,7 @@ static void ZB_copyFrameBufferRGB24(ZBuffer * zb,
 	    p += 3;
 	} while (--n > 0);
 
-	(char *) p1 += linesize;
+	*((char *) p1) += linesize;
     }
 }
 
@@ -502,13 +506,22 @@ void ZB_clear(ZBuffer * zb, int clear_z, int z,
 	pp = zb->pbuf;
 	for (y = 0; y < zb->ysize; y++) {
 #if TGL_FEATURE_RENDER_BITS == 15 || TGL_FEATURE_RENDER_BITS == 16
-            color = RGB_TO_PIXEL(r, g, b);
+            //color = RGB_TO_PIXEL(r, g, b);
+         #if TGL_FEATURE_FORCE_CLEAR_NO_COPY_COLOR
+         	color = TGL_NO_COPY_COLOR;
+         #else
+         	color = RGB_TO_PIXEL(r, g, b);
+         #endif
 	    memset_s(pp, color, zb->xsize);
 #elif TGL_FEATURE_RENDER_BITS == 32
+		#if TGL_FEATURE_FORCE_CLEAR_NO_COPY_COLOR
+			color = TGL_NO_COPY_COLOR;
+		#else
             color = RGB_TO_PIXEL(r, g, b);
+        #endif
 	    memset_l(pp, color, zb->xsize);
-#elif TGL_FEATURE_RENDER_BITS == 24 
-            memset_RGB24(pp,r>>8,g>>8,b>>8,zb->xsize);
+// #elif TGL_FEATURE_RENDER_BITS == 24
+            // memset_RGB24(pp,r>>8,g>>8,b>>8,zb->xsize);
 #else
 #error TODO
 #endif

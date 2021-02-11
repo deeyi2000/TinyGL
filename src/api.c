@@ -444,13 +444,15 @@ void glLightf(int light,int type,float v)
 void glLightModeli(int pname,int param)
 {
   GLParam p[6];
-  int i;
 
   p[0].op=OP_LightModel;
   p[1].i=pname;
   p[2].f=(float)param;
-  for(i=0;i<4;i++) p[3+i].f=0;
-
+//  for(i=0;i<4;i++) p[3+i].f=0;
+//  for(i=0;i<3;i++) p[3+i].f=0;
+  p[3].f=0;
+  p[4].f=0;
+  p[5].f=0;
   gl_add_op(p);
 }
 

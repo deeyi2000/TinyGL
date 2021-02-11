@@ -10,6 +10,7 @@
   int part,update_left,update_right;
 
   int nb_lines,dx1,dy1,tmp,dx2,dy2;
+  unsigned short the_y;
 
   int error,derror;
   int x1,dxdy_min,dxdy_max;
@@ -132,7 +133,8 @@
 
   /* screen coordinates */
 
-  pp1 = (PIXEL *) ((char *) zb->pbuf + zb->linesize * p0->y);
+  pp1 = (PIXEL *) ((char *) zb->pbuf + zb->linesize * p0->y); 
+  the_y = p0->y;
   pz1 = zb->zbuf + p0->y * zb->xsize;
 
   DRAW_INIT();
@@ -260,6 +262,7 @@
 #endif
 
           n=(x2 >> 16) - x1;
+          /*the_x = x1; //Gek added this to make determining the X coordinate easier!*/
           pp=(PIXEL *)((char *)pp1 + x1 * PSZB);
 #ifdef INTERP_Z
           pz=pz1+x1;
@@ -279,10 +282,10 @@
           tz=tz1;
 #endif
           while (n>=3) {
-              PUT_PIXEL(0);
-              PUT_PIXEL(1);
-              PUT_PIXEL(2);
-              PUT_PIXEL(3);
+              PUT_PIXEL(0);/*the_x++;*/
+              PUT_PIXEL(1);/*the_x++;*/
+              PUT_PIXEL(2);/*the_x++;*/
+              PUT_PIXEL(3);/*the_x++;*/
 #ifdef INTERP_Z
               pz+=4;
 #endif
@@ -290,16 +293,16 @@
               n-=4;
           }
           while (n>=0) {
-              PUT_PIXEL(0);
+              PUT_PIXEL(0);/*the_x++;*/
 #ifdef INTERP_Z
               pz+=1;
 #endif
               pp=(PIXEL *)((char *)pp + PSZB);
               n-=1;
           }
-      }
+      }//the_y++;
 #else
-      DRAW_LINE();
+      DRAW_LINE();//the_y++;
 #endif
       
       /* left edge */
@@ -348,6 +351,7 @@
 
       /* screen coordinates */
       pp1=(PIXEL *)((char *)pp1 + zb->linesize);
+      the_y++;
       pz1+=zb->xsize;
     }
   }

@@ -1,7 +1,7 @@
-#include <GL/oscontext.h>
+#include "include/GL/oscontext.h"
 #include "zbuffer.h"
 #include "zgl.h"
-#include <GL/gl.h>
+#include "include/GL/gl.h"
 #include <stdlib.h>
 #include <assert.h>
 

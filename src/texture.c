@@ -16,6 +16,17 @@ static GLTexture *find_texture(GLContext *c,int h)
   return NULL;
 }
 
+void* glGetTexturePixmap(int text, int level, int* xsize, int* ysize){
+	GLTexture* tex;
+	GLContext *c=gl_get_context();
+	assert(text >= 0 && level < MAX_TEXTURE_LEVELS);
+	tex = find_texture(c, text);
+	if(!tex)return NULL;
+	*xsize = tex->images[level].xsize;
+	*ysize = tex->images[level].ysize;
+	return tex->images[level].pixmap;
+}
+
 static void free_texture(GLContext *c,int h)
 {
   GLTexture *t,**ht;
@@ -139,7 +150,7 @@ void glopTexImage2D(GLContext *c,GLParam *p)
   if (!(target == GL_TEXTURE_2D && level == 0 && components == 3 && 
         border == 0 && format == GL_RGB &&
         type == GL_UNSIGNED_BYTE)) {
-    gl_fatal_error("glTexImage2D: combinaison of parameters not handled");
+    gl_fatal_error("glTexImage2D: combination of parameters not handled!!");
   }
   
   do_free=0;

@@ -1,6 +1,19 @@
 #include "zgl.h"
 #include "msghandling.h"
 
+
+
+void glPolygonStipple(void* a){
+	unsigned char* b = a;
+	GLContext *c=gl_get_context();
+	ZBuffer *zb = c->zb;
+	for(int i = 0; i < 128; i++)
+	{
+		zb->stipplepattern[i] = b[i];
+	}
+}
+
+
 void glopViewport(GLContext *c,GLParam *p)
 {
   int xsize,ysize,xmin,ymin,xsize_req,ysize_req;
@@ -70,6 +83,9 @@ void glopEnableDisable(GLContext *c,GLParam *p)
     if (v) c->offset_states |= TGL_OFFSET_FILL;
     else c->offset_states &= ~TGL_OFFSET_FILL;
     break; 
+  case GL_POLYGON_STIPPLE:
+  	c->zb->dostipple = v;
+  	break;
   case GL_POLYGON_OFFSET_POINT:
     if (v) c->offset_states |= TGL_OFFSET_POINT;
     else c->offset_states &= ~TGL_OFFSET_POINT;

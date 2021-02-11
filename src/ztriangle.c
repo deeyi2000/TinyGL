@@ -1,8 +1,23 @@
 #include <stdlib.h>
 #include "zbuffer.h"
-
-#define ZCMP(z,zpix) ((z) >= (zpix))
-
+#if TGL_FEATURE_RENDER_BITS == 32
+#define THE_X (((unsigned short)(pp-pp1)))
+#elif TGL_FEATURE_RENDER_BITS == 16
+#define THE_X (((unsigned short)(pp-pp1)))
+#elif TGL_FEATURE_RENDER_BITS == 8
+#define THE_X (((unsigned short)pp)-(unsigned short)pp1)
+#else
+#error "24 bit mode is not supported in this port. Use 16 or 32 bit modes."
+#endif
+#define XSTIP(_a) ((THE_X+_a)& 31)
+#define YSTIP (the_y & 31)
+#define STIPBIT(_a) (zb->stipplepattern[(XSTIP(_a) + (YSTIP<<5))>>3] & (1<<(XSTIP(_a) & 7)))
+#define STIPTEST(_a) !(zb->dostipple && !STIPBIT(_a))
+#if TGL_FEATURE_POLYGON_STIPPLE
+#define ZCMP(z,zpix,_a) ((z) >= (zpix) && STIPTEST(_a))
+#else
+#define ZCMP(z,zpix,_a) ((z) >= (zpix))
+#endif
 void ZB_fillTriangleFlat(ZBuffer *zb,
 			 ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
@@ -45,7 +60,7 @@ void ZB_fillTriangleFlat(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
     zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
+    if (ZCMP(zz,pz[_a],_a)) {				\
       pp[_a]=color;				\
       pz[_a]=zz;				\
     }						\
@@ -82,7 +97,7 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
     zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
+    if (ZCMP(zz,pz[_a],_a)) {				\
       pp[3 * _a]=or1 >> 8;\
       pp[3 * _a + 1]=og1 >> 8;\
       pp[3 * _a + 2]=ob1 >> 8;\
@@ -107,7 +122,7 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
     zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
+    if (ZCMP(zz,pz[_a],_a)) {				\
       tmp=rgb & 0xF81F07E0;			\
       pp[_a]=tmp | (tmp >> 16);			\
       pz[_a]=zz;				\
@@ -131,16 +146,16 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
   rgb|=(b1 << 5) & 0x001FF000;						   \
   drgbdx=_drgbdx;							   \
   while (n>=3) {							   \
-    PUT_PIXEL(0);							   \
-    PUT_PIXEL(1);							   \
-    PUT_PIXEL(2);							   \
-    PUT_PIXEL(3);							   \
+    PUT_PIXEL(0);/*the_x++;*/							   \
+    PUT_PIXEL(1);/*the_x++;*/							   \
+    PUT_PIXEL(2);/*the_x++;*/							   \
+    PUT_PIXEL(3);/*the_x++;*/							   \
     pz+=4;								   \
     pp+=4;								   \
     n-=4;								   \
   }									   \
   while (n>=0) {							   \
-    PUT_PIXEL(0);							   \
+    PUT_PIXEL(0);/*the_x++;*/						   \
     pz+=1;								   \
     pp+=1;								   \
     n-=1;								   \
@@ -156,7 +171,7 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
     zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
+    if (ZCMP(zz,pz[_a],_a)) {				\
       pp[_a] = RGB_TO_PIXEL(or1, og1, ob1);\
       pz[_a]=zz;				\
     }\
@@ -169,13 +184,13 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
 #endif /* TGL_FEATURE_RENDER_BITS */
 
 #include "ztriangle.h"
-}
+} //EOF smooth fill triangle
 
 void ZB_setTexture(ZBuffer *zb,PIXEL *texture)
 {
     zb->current_texture=texture;
 }
-
+//Ignore this it is never used
 void ZB_fillTriangleMapping(ZBuffer *zb,
 			    ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
@@ -195,7 +210,7 @@ void ZB_fillTriangleMapping(ZBuffer *zb,
 {						\
    unsigned char *ptr;\
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
+     if (ZCMP(zz,pz[_a],_a)) {				\
        ptr = texture + (((t & 0x3FC00000) | s) >> 14) * 3; \
        pp[3 * _a]= ptr[0];\
        pp[3 * _a + 1]= ptr[1];\
@@ -212,7 +227,7 @@ void ZB_fillTriangleMapping(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
+     if (ZCMP(zz,pz[_a],_a)) {				\
        pp[_a]=texture[((t & 0x3FC00000) | s) >> 14];	\
        pz[_a]=zz;				\
     }						\
@@ -260,7 +275,7 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
 {						\
    unsigned char *ptr;\
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
+     if (ZCMP(zz,pz[_a],_a)) {				\
        ptr = texture + (((t & 0x3FC00000) | (s & 0x003FC000)) >> 14) * 3;\
        pp[3 * _a]= ptr[0];\
        pp[3 * _a + 1]= ptr[1];\
@@ -277,7 +292,7 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
 #define PUT_PIXEL(_a)				\
 {						\
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
+     if (ZCMP(zz,pz[_a],_a)) {				\
        pp[_a]=*(PIXEL *)((char *)texture+ \
                (((t & 0x3FC00000) | (s & 0x003FC000)) >> (17 - PSZSH)));\
        pz[_a]=zz;				\
@@ -316,16 +331,16 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
       fz+=fndzdx;\
       zinv=1.0 / fz;\
     }\
-    PUT_PIXEL(0);							   \
-    PUT_PIXEL(1);							   \
-    PUT_PIXEL(2);							   \
-    PUT_PIXEL(3);							   \
-    PUT_PIXEL(4);							   \
-    PUT_PIXEL(5);							   \
-    PUT_PIXEL(6);							   \
-    PUT_PIXEL(7);							   \
+    PUT_PIXEL(0);/*the_x++;*/		   \
+    PUT_PIXEL(1);/*the_x++;*/		   \
+    PUT_PIXEL(2);/*the_x++;*/		   \
+    PUT_PIXEL(3);/*the_x++;*/		   \
+    PUT_PIXEL(4);/*the_x++;*/		   \
+    PUT_PIXEL(5);/*the_x++;*/		   \
+    PUT_PIXEL(6);/*the_x++;*/		   \
+    PUT_PIXEL(7);/*the_x-=7;*/		   \
     pz+=NB_INTERP;							   \
-    pp=(PIXEL *)((char *)pp + NB_INTERP * PSZB);\
+    pp=(PIXEL *)((char *)pp + NB_INTERP * PSZB);/*the_x+=NB_INTERP * PSZB;*/\
     n-=NB_INTERP;							   \
     sz+=ndszdx;\
     tz+=ndtzdx;\
@@ -340,7 +355,7 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
       dtdx= (int)( (dtzdx - tt*fdzdx)*zinv );\
     }\
   while (n>=0) {							   \
-    PUT_PIXEL(0);							   \
+    PUT_PIXEL(0);/*the_x += PSZB;*/			   \
     pz+=1;								   \
     pp=(PIXEL *)((char *)pp + PSZB);\
     n-=1;								   \
@@ -375,7 +390,7 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
    float zinv; \
    int s,t; \
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
+     if (ZCMP(zz,pz[_a],_a)) {				\
        zinv= 1.0 / (float) z; \
        s= (int) (sz * zinv); \
        t= (int) (tz * zinv); \

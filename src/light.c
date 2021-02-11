@@ -179,6 +179,11 @@ void gl_enable_disable_light(GLContext *c,int light,int v)
   }
 }
 
+//FEATURES
+int zEnableSpecular = 1; //Enable specular lighting
+void glSetEnableSpecular(int s){
+	zEnableSpecular = s;
+}
 /* non optimized lightening model */
 void gl_shade_vertex(GLContext *c,GLVertex *v)
 {
@@ -255,48 +260,49 @@ void gl_shade_vertex(GLContext *c,GLVertex *v)
       }
 
       /* specular light */
-      
-      if (c->local_light_model) {
-        V3 vcoord;
-        vcoord.X=v->ec.X;
-        vcoord.Y=v->ec.Y;
-        vcoord.Z=v->ec.Z;
-        gl_V3_Norm(&vcoord);
-        s.X=d.X-vcoord.X;
-        s.Y=d.Y-vcoord.X;
-        s.Z=d.Z-vcoord.X;
-      } else {
-        s.X=d.X;
-        s.Y=d.Y;
-        s.Z=d.Z+1.0;
-      }
-      dot_spec=n.X*s.X+n.Y*s.Y+n.Z*s.Z;
-      if (twoside && dot_spec < 0) dot_spec = -dot_spec;
-      if (dot_spec>0) {
-        GLSpecBuf *specbuf;
-        int idx;
-        tmp=sqrt(s.X*s.X+s.Y*s.Y+s.Z*s.Z);
-        if (tmp > 1E-3) {
-          dot_spec=dot_spec / tmp;
-        }
-      
-        /* TODO: optimize */
-        /* testing specular buffer code */
-        /* dot_spec= pow(dot_spec,m->shininess);*/
-        specbuf = specbuf_get_buffer(c, m->shininess_i, m->shininess);
-        idx = (int)(dot_spec*SPECULAR_BUFFER_SIZE);
-        if (idx > SPECULAR_BUFFER_SIZE) idx = SPECULAR_BUFFER_SIZE;
-        dot_spec = specbuf->buf[idx];
-        lR+=dot_spec * l->specular.v[0] * m->specular.v[0];
-        lG+=dot_spec * l->specular.v[1] * m->specular.v[1];
-        lB+=dot_spec * l->specular.v[2] * m->specular.v[2];
-      }
-    }
+      if (zEnableSpecular){
+	      if (c->local_light_model) {
+	        V3 vcoord;
+	        vcoord.X=v->ec.X;
+	        vcoord.Y=v->ec.Y;
+	        vcoord.Z=v->ec.Z;
+	        gl_V3_Norm(&vcoord);
+	        s.X=d.X-vcoord.X;
+	        s.Y=d.Y-vcoord.X;
+	        s.Z=d.Z-vcoord.X;
+	      } else {
+	        s.X=d.X;
+	        s.Y=d.Y;
+	        s.Z=d.Z+1.0;
+	      }
+	      dot_spec=n.X*s.X+n.Y*s.Y+n.Z*s.Z;
+	      if (twoside && dot_spec < 0) dot_spec = -dot_spec;
+	      if (dot_spec>0) {
+	        GLSpecBuf *specbuf;
+	        int idx;
+	        tmp=sqrt(s.X*s.X+s.Y*s.Y+s.Z*s.Z);
+	        if (tmp > 1E-3) {
+	          dot_spec=dot_spec / tmp;
+	        }
+	      
+	        /* TODO: optimize */
+	        /* testing specular buffer code */
+	        /* dot_spec= pow(dot_spec,m->shininess);*/
+	        specbuf = specbuf_get_buffer(c, m->shininess_i, m->shininess);
+	        idx = (int)(dot_spec*SPECULAR_BUFFER_SIZE);
+	        if (idx > SPECULAR_BUFFER_SIZE) idx = SPECULAR_BUFFER_SIZE;
+	        dot_spec = specbuf->buf[idx];
+	        lR+=dot_spec * l->specular.v[0] * m->specular.v[0];
+	        lG+=dot_spec * l->specular.v[1] * m->specular.v[1];
+	        lB+=dot_spec * l->specular.v[2] * m->specular.v[2];
+          }//EOF if dot_spec>0
+      }//EOF zEnableSpecular
+    } //EOF if dot > 0
 
     R+=att * lR;
     G+=att * lG;
     B+=att * lB;
-  }
+  } //End of light loop.
 
   v->color.v[0]=clampf(R,0,1);
   v->color.v[1]=clampf(G,0,1);

@@ -1,4 +1,27 @@
-TinyGL 0.4 (c) 1997-2002 Fabrice Bellard.
+TinyGL 0.5 (c) 1997-2020 Fabrice Bellard, C-Chads (see License, it's free software)
+
+This is a maintained fork of TinyGL, by the C-Chads.
+It is a small, suckless Software-only partial GL 1.1 implementation.
+
+The original project was by Fabrice Bellard. We have forked it.
+The changelog is as such:
+NEW FUNCTIONS
+glSetEnableSpecular(int shouldenablespecular);
+  Allows you to configure specular rendering. Turn it off
+  if you want to use GL_LIGHTING but don't plan on using
+  specular lighting. it will save cycles.
+glGetTexturePixmap(int text, int level, int* xsize, int* ysize)
+  Allows the user to retrieve the raw pixel data of a texture, for their own modification.
+
+
+FIXED BUGS FROM THE ORIGINAL!
+  TinyGL 0.4 had incorrect color interpolation and issues with
+  GL_FLAT, causing the hello world triangle to look rather...
+  wrong. Additionally, per vertex color is just cool.
+
+  It's fixed.
+FULLY COMPATIBLE WITH RGBA!
+  The library is now configured properly for RGBA rendering.
 
 General Description:
 --------------------

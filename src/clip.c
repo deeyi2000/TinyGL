@@ -32,9 +32,17 @@ void gl_transform_to_viewport(GLContext *c,GLVertex *v)
                     + ZB_POINT_BLUE_MIN);
   } else {
       /* no need to convert to integer if no lighting : take current color */
+      /* OLD CODE
       v->zp.r = c->longcurrent_color[0];
       v->zp.g = c->longcurrent_color[1];
-      v->zp.b = c->longcurrent_color[2];
+      v->zp.b = c->longcurrent_color[2]; */
+      //NEW CODE
+      v->zp.r=(int)(v->color.v[0] * (ZB_POINT_RED_MAX - ZB_POINT_RED_MIN) 
+                          + ZB_POINT_RED_MIN);
+      v->zp.g=(int)(v->color.v[1] * (ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN) 
+                    + ZB_POINT_GREEN_MIN);
+      v->zp.b=(int)(v->color.v[2] * (ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN) 
+                    + ZB_POINT_BLUE_MIN);
   }
   
   /* texture */
@@ -216,18 +224,30 @@ static inline void updateTmp(GLContext *c,
 			     GLVertex *q,GLVertex *p0,GLVertex *p1,float t)
 {
   if (c->current_shade_model == GL_SMOOTH) {
-    q->color.v[0]=p0->color.v[0] + (p1->color.v[0]-p0->color.v[0])*t;
-    q->color.v[1]=p0->color.v[1] + (p1->color.v[1]-p0->color.v[1])*t;
-    q->color.v[2]=p0->color.v[2] + (p1->color.v[2]-p0->color.v[2])*t;
+    q->color.v[0]=p0->color.v[0] + (p1->color.v[0] - p0->color.v[0])*t;
+    q->color.v[1]=p0->color.v[1] + (p1->color.v[1] - p0->color.v[1])*t;
+    q->color.v[2]=p0->color.v[2] + (p1->color.v[2] - p0->color.v[2])*t;
+    q->zp.r = p0->zp.r + (p1->zp.r - p0->zp.r)*t;
+    q->zp.g = p0->zp.g + (p1->zp.g - p0->zp.g)*t;
+    q->zp.b = p0->zp.b + (p1->zp.b - p0->zp.b)*t;
+    //q->color.v[3]=p0->color.v[3] + (p1->color.v[3] - p0->color.v[3])*t;
+    //printf("\np0 Components are %f, %f, %f", p0->color.v[0], p0->color.v[1], p0->color.v[2]);
+    //printf("\nZbuffer point r,g,b for p0 are: %d %d %d",p0->zp.r, p0->zp.g,p0->zp.b);
+	//printf("\n~\nNew Components are %f, %f, %f", q->color.v[0], q->color.v[1], q->color.v[2]);
+    //printf("\nZbuffer point r,g,b for new point are: %d %d %d",q->zp.r, q->zp.g,q->zp.b);
+ /// *
   } else {
     q->color.v[0]=p0->color.v[0];
     q->color.v[1]=p0->color.v[1];
     q->color.v[2]=p0->color.v[2];
+    q->zp.r = p0->zp.r;
+    q->zp.g = p0->zp.g;
+    q->zp.b = p0->zp.b;
   }
-
+	//	*/
   if (c->texture_2d_enabled) {
-    q->tex_coord.X=p0->tex_coord.X + (p1->tex_coord.X-p0->tex_coord.X)*t;
-    q->tex_coord.Y=p0->tex_coord.Y + (p1->tex_coord.Y-p0->tex_coord.Y)*t;
+    q->tex_coord.X = p0->tex_coord.X + (p1->tex_coord.X-p0->tex_coord.X)*t;
+    q->tex_coord.Y = p0->tex_coord.Y + (p1->tex_coord.Y-p0->tex_coord.Y)*t;
   }
 
   q->clip_code=gl_clipcode(q->pc.X,q->pc.Y,q->pc.Z,q->pc.W);
@@ -283,7 +303,7 @@ void gl_draw_triangle(GLContext *c,
       }
   } else {
     c_and=cc[0] & cc[1] & cc[2];
-    if (c_and==0) {
+    if (c_and==0) { //Don't draw a triangle with no points
       gl_draw_triangle_clip(c,p0,p1,p2,0);
     }
   }
@@ -383,6 +403,7 @@ int count_triangles,count_triangles_textured,count_pixels;
 void gl_draw_triangle_fill(GLContext *c,
                            GLVertex *p0,GLVertex *p1,GLVertex *p2)
 {
+	//puts("\n <yes, it's draw_triangle_fill>");
 #ifdef PROFILE
   {
     int norm;

@@ -5,11 +5,13 @@
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
-#include <GL/gl.h>
+#include "include/GL/gl.h"
 #include "zbuffer.h"
 #include "zmath.h"
 #include "zfeatures.h"
-
+#ifndef M_PI
+#define M_PI 3.14159265358979323
+#endif
 #define DEBUG
 /* #define NDEBUG */
 

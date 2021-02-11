@@ -129,7 +129,9 @@ void glInit(void *zbuffer1)
   c->current_cull_face=GL_BACK;
   c->current_shade_model=GL_SMOOTH;
   c->cull_face_enabled=0;
-  
+  c->zb->dostipple = 0;
+  for(int i = 0; i < 128; i++)
+  	c->zb->stipplepattern[i] = 0xFF;
   /* clear */
   c->clear_color.v[0]=0;
   c->clear_color.v[1]=0;

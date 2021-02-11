@@ -33,7 +33,7 @@
 #if TGL_FEATURE_RENDER_BITS == 15
 
 #define RGB_TO_PIXEL(r,g,b) \
-  ((((r) >> 1) & 0x7c00) | (((g) >> 6) & 0x03e0) | ((b) >> 11))
+  ((((b) >> 1) & 0x7c00) | (((g) >> 6) & 0x03e0) | ((r) >> 11))
 typedef unsigned short PIXEL;
 /* bytes per pixel */
 #define PSZB 2 
@@ -52,7 +52,7 @@ typedef unsigned short PIXEL;
 #elif TGL_FEATURE_RENDER_BITS == 24
 
 #define RGB_TO_PIXEL(r,g,b) \
-  ((((r) << 8) & 0xff0000) | ((g) & 0xff00) | ((b) >> 8))
+  ((((b) << 8) & 0xff0000) | ((g) & 0xff00) | ((r) >> 8))
 typedef unsigned char PIXEL;
 #define PSZB 3
 #define PSZSH 5
@@ -60,7 +60,8 @@ typedef unsigned char PIXEL;
 #elif TGL_FEATURE_RENDER_BITS == 32
 
 #define RGB_TO_PIXEL(r,g,b) \
-  ((((r) << 8) & 0xff0000) | ((g) & 0xff00) | ((b) >> 8))
+  ((((b) << 8) & 0xff0000) | ((g) & 0xff00) | ((r) >> 8))
+//  ((((r) << 8) & 0xff0000) | ((g) & 0xff00) | ((b) >> 8))
 typedef unsigned int PIXEL;
 #define PSZB 4
 #define PSZSH 5
@@ -79,7 +80,10 @@ typedef struct {
     unsigned short *zbuf;
     PIXEL *pbuf;
     int frame_buffer_allocated;
-    
+    /* opengl polygon stipple*/
+    int dostipple;
+    unsigned char stipplepattern[128]; //32 bits wide, 32 bits tall. 32 * 4 bytes.
+     
     int nb_colors;
     unsigned char *dctable;
     int *ctable;

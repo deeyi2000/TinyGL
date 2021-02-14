@@ -633,6 +633,16 @@ enum {
 
 };
 
+typedef enum {
+	GL_TEXT_SIZE8x8 = 1,
+	GL_TEXT_SIZE16x16 = 2,
+	GL_TEXT_SIZE24x24 = 3,
+	GL_TEXT_SIZE32x32 = 4,
+	GL_TEXT_SIZE40x40 = 5,
+	GL_TEXT_SIZE48x48 = 6,
+	GL_TEXT_SIZE56x56 = 7,
+	GL_TEXT_SIZE64x64 = 8
+} GLTEXTSIZE;
 enum {
 	GL_CURRENT_BIT		= 0x00000001,
 	GL_POINT_BIT		= 0x00000002,
@@ -677,12 +687,20 @@ typedef int GLsizei;
 void glEnable(int code);
 void glDisable(int code);
 
+
 void glShadeModel(int mode);
 void glCullFace(int mode);
 void glPolygonMode(int face,int mode);
 
 void glBegin(int type);
 void glEnd(void);
+
+//NEW functions added by GEK!!!
+void glSetEnableSpecular(int s); //Toggle specular rendering (Speedup!!!)
+void* glGetTexturePixmap(int text, int level, int* xsize, int* ysize); //Get the raw data of a texture!
+void glDrawText(const unsigned char* text, int x, int y, unsigned int pixel); //Blit 8x8 text to he screen
+void glTextSize(GLTEXTSIZE mode); //Set text size
+void glPlotPixel(int x, int y, unsigned int pixel); //plot a pixel to the screen.
 
 #define PROTO_GL1(name)				\
 void gl ## name ## 1f(float);	\
@@ -745,7 +763,8 @@ int glIsList(unsigned int list);
 void glNewList(unsigned int list,int mode);
 void glEndList(void);
 void glCallList(unsigned int list);
-
+void glDeleteList(unsigned int list);
+void glDeleteLists(unsigned int list, unsigned int range);
 /* clear */
 void glClear(int mask);
 void glClearColor(float r,float g,float b,float a);
@@ -824,6 +843,7 @@ inline void glRasterPos2f(float, float) {}
 inline void glPolygonStipple(void*) {}
 inline void glTexParameterf(int, int, int) {};
   */
+void glPolygonStipple(void* a); //TODO: implement
 /* non compatible functions */
 
 void glDebug(int mode);

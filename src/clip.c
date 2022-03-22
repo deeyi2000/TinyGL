@@ -1,7 +1,4 @@
-#include "zgl.h"
-
-/* fill triangle profile */
-/* #define PROFILE */
+#include <GL/internal/zgl.h>
 
 #define CLIP_XMIN   (1<<0)
 #define CLIP_XMAX   (1<<1)
@@ -12,24 +9,33 @@
 
 void gl_transform_to_viewport(GLContext *c,GLVertex *v)
 {
-  float winv;
+  GLfloat winv;
 
   /* coordinates */
-  winv=1.0/v->pc.W;
-  v->zp.x= (int) ( v->pc.X * winv * c->viewport.scale.X 
-                   + c->viewport.trans.X );
-  v->zp.y= (int) ( v->pc.Y * winv * c->viewport.scale.Y 
-                   + c->viewport.trans.Y );
-  v->zp.z= (int) ( v->pc.Z * winv * c->viewport.scale.Z 
-                   + c->viewport.trans.Z );
+  winv=slldiv(int2sll(1),v->pc.W);
+  v->zp.x= sll2int(slladd(sllmul(sllmul(v->pc.X, winv), c->viewport.scale.X), 
+                   	c->viewport.trans.X));
+  v->zp.y= sll2int(slladd(sllmul(sllmul(v->pc.Y, winv), c->viewport.scale.Y), 
+                   	c->viewport.trans.Y));
+  v->zp.z= sll2int(slladd(sllmul(sllmul(v->pc.Z, winv), c->viewport.scale.Z), 
+                   	c->viewport.trans.Z));
   /* color */
   if (c->lighting_enabled) {
-      v->zp.r=(int)(v->color.v[0] * (ZB_POINT_RED_MAX - ZB_POINT_RED_MIN) 
-                    + ZB_POINT_RED_MIN);
-      v->zp.g=(int)(v->color.v[1] * (ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN) 
-                    + ZB_POINT_GREEN_MIN);
-      v->zp.b=(int)(v->color.v[2] * (ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN) 
-                    + ZB_POINT_BLUE_MIN);
+      v->zp.r=sll2int(slladd(
+		     	sllmul(v->color.v[0],
+				int2sll(ZB_POINT_RED_MAX - ZB_POINT_RED_MIN)
+			), 
+                     int2sll(ZB_POINT_RED_MIN)));
+      v->zp.g=sll2int(slladd(
+			sllmul(v->color.v[1],
+				int2sll(ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN) 
+			),
+                     int2sll(ZB_POINT_GREEN_MIN)));
+      v->zp.b=sll2int(slladd(
+			sllmul(v->color.v[2],
+				int2sll(ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN) 
+			),
+                     int2sll(ZB_POINT_BLUE_MIN)));
   } else {
       /* no need to convert to integer if no lighting : take current color */
       v->zp.r = c->longcurrent_color[0];
@@ -40,24 +46,32 @@ void gl_transform_to_viewport(GLContext *c,GLVertex *v)
   /* texture */
 
   if (c->texture_2d_enabled) {
-    v->zp.s=(int)(v->tex_coord.X * (ZB_POINT_S_MAX - ZB_POINT_S_MIN) 
-                  + ZB_POINT_S_MIN);
-    v->zp.t=(int)(v->tex_coord.Y * (ZB_POINT_T_MAX - ZB_POINT_T_MIN) 
-                  + ZB_POINT_T_MIN);
+    v->zp.s=sll2int(slladd(
+			sllmul(v->tex_coord.X,
+				int2sll(ZB_POINT_S_MAX - ZB_POINT_S_MIN) 
+			),
+     			int2sll(ZB_POINT_S_MIN)));
+    v->zp.t=sll2int(slladd(
+			sllmul(v->tex_coord.Y,
+				int2sll(ZB_POINT_T_MAX - ZB_POINT_T_MIN) 
+			),
+			int2sll(ZB_POINT_T_MIN)));
   }
 }
 
 
 static void gl_add_select1(GLContext *c,int z1,int z2,int z3)
 {
-  unsigned int min,max;
+//  unsigned int min,max;
+  int min,max;
   min=max=z1;
   if (z2<min) min=z2;
   if (z3<min) min=z3;
   if (z2>max) max=z2;
   if (z3>max) max=z3;
 
-  gl_add_select(c,0xffffffff-min,0xffffffff-max);
+//  gl_add_select(c,0xffffffff-min,0xffffffff-max);
+  gl_add_select(c,-1-min,-1-max);
 }
 
 /* point */
@@ -75,16 +89,16 @@ void gl_draw_point(GLContext *c,GLVertex *p0)
 
 /* line */
 
-static inline void interpolate(GLVertex *q,GLVertex *p0,GLVertex *p1,float t)
+static inline void interpolate(GLVertex *q,GLVertex *p0,GLVertex *p1,GLfloat t)
 {
-  q->pc.X=p0->pc.X+(p1->pc.X-p0->pc.X)*t;
-  q->pc.Y=p0->pc.Y+(p1->pc.Y-p0->pc.Y)*t;
-  q->pc.Z=p0->pc.Z+(p1->pc.Z-p0->pc.Z)*t;
-  q->pc.W=p0->pc.W+(p1->pc.W-p0->pc.W)*t;
+  q->pc.X=slladd(p0->pc.X, sllmul(sllsub(p1->pc.X, p0->pc.X), t));
+  q->pc.Y=slladd(p0->pc.Y, sllmul(sllsub(p1->pc.Y, p0->pc.Y), t));
+  q->pc.Z=slladd(p0->pc.Z, sllmul(sllsub(p1->pc.Z, p0->pc.Z), t));
+  q->pc.W=slladd(p0->pc.W, sllmul(sllsub(p1->pc.W, p0->pc.W), t));
 
-  q->color.v[0]=p0->color.v[0] + (p1->color.v[0]-p0->color.v[0])*t;
-  q->color.v[1]=p0->color.v[1] + (p1->color.v[1]-p0->color.v[1])*t;
-  q->color.v[2]=p0->color.v[2] + (p1->color.v[2]-p0->color.v[2])*t;
+  q->color.v[0]=slladd(p0->color.v[0], sllmul(sllsub(p1->color.v[0], p0->color.v[0]), t));
+  q->color.v[1]=slladd(p0->color.v[1], sllmul(sllsub(p1->color.v[1], p0->color.v[1]), t));
+  q->color.v[2]=slladd(p0->color.v[2], sllmul(sllsub(p1->color.v[2], p0->color.v[2]), t));
 }
 
 /*
@@ -93,29 +107,29 @@ static inline void interpolate(GLVertex *q,GLVertex *p0,GLVertex *p1,float t)
 
 /* Line Clipping algorithm from 'Computer Graphics', Principles and
    Practice */
-static inline int ClipLine1(float denom,float num,float *tmin,float *tmax)
+static inline int ClipLine1(GLfloat denom,GLfloat num,GLfloat *tmin,GLfloat *tmax)
 {
-  float t;
+  GLfloat t;
 	 
-  if (denom>0) {
-    t=num/denom;
-    if (t>*tmax) return 0;
-    if (t>*tmin) *tmin=t;
-  } else if (denom<0) {
-    t=num/denom;
-    if (t<*tmin) return 0;
-    if (t<*tmax) *tmax=t;
-  } else if (num>0) return 0;
+  if (sllvalue(denom)>sllvalue(int2sll(0))) {
+    t=slldiv(num, denom);
+    if (sllvalue(t)>sllvalue((*tmax))) return 0;
+    if (sllvalue(t)>sllvalue((*tmin))) *tmin=t;
+  } else if (sllvalue(denom)<sllvalue(int2sll(0))) {
+    t=slldiv(num, denom);
+    if (sllvalue(t)<sllvalue((*tmin))) return 0;
+    if (sllvalue(t)<sllvalue((*tmax))) *tmax=t;
+  } else if (sllvalue(num)>sllvalue(int2sll(0))) return 0;
   return 1;
 }
 
 void gl_draw_line(GLContext *c,GLVertex *p1,GLVertex *p2)
 {
-  float dx,dy,dz,dw,x1,y1,z1,w1;
-  float tmin,tmax;
+  GLfloat dx,dy,dz,dw,x1,y1,z1,w1;
+  GLfloat tmin,tmax;
   GLVertex q1,q2;
   int cc1,cc2;
-  
+
   cc1=p1->clip_code;
   cc2=p2->clip_code;
 
@@ -131,23 +145,23 @@ void gl_draw_line(GLContext *c,GLVertex *p1,GLVertex *p2)
   } else if ( (cc1&cc2) != 0 ) {
     return;
   } else {
-    dx=p2->pc.X-p1->pc.X;
-    dy=p2->pc.Y-p1->pc.Y;
-    dz=p2->pc.Z-p1->pc.Z;
-    dw=p2->pc.W-p1->pc.W;
+    dx=sllsub(p2->pc.X, p1->pc.X);
+    dy=sllsub(p2->pc.Y, p1->pc.Y);
+    dz=sllsub(p2->pc.Z, p1->pc.Z);
+    dw=sllsub(p2->pc.W, p1->pc.W);
     x1=p1->pc.X;
     y1=p1->pc.Y;
     z1=p1->pc.Z;
     w1=p1->pc.W;
     
-    tmin=0;
-    tmax=1;
-    if (ClipLine1(dx+dw,-x1-w1,&tmin,&tmax) &&
-        ClipLine1(-dx+dw,x1-w1,&tmin,&tmax) &&
-        ClipLine1(dy+dw,-y1-w1,&tmin,&tmax) &&
-        ClipLine1(-dy+dw,y1-w1,&tmin,&tmax) &&
-        ClipLine1(dz+dw,-z1-w1,&tmin,&tmax) && 
-        ClipLine1(-dz+dw,z1-w1,&tmin,&tmax)) {
+    tmin=int2sll(0);
+    tmax=int2sll(1);
+    if (ClipLine1( slladd(dx, dw), sllsub(sllneg(x1), w1), &tmin, &tmax) &&
+        ClipLine1( slladd(sllneg(dx), dw), sllsub(x1, w1), &tmin, &tmax) &&
+        ClipLine1( slladd(dy, dw), sllsub(sllneg(y1), w1), &tmin, &tmax) &&
+        ClipLine1( slladd(sllneg(dy), dw), sllsub(y1, w1), &tmin, &tmax) &&
+        ClipLine1( slladd(dz, dw), sllsub(sllneg(z1), w1), &tmin, &tmax) && 
+        ClipLine1( slladd(sllneg(dz), dw), sllsub(z1, w1), &tmin, &tmax)) {
 
       interpolate(&q1,p1,p2,tmin);
       interpolate(&q2,p1,p2,tmax);
@@ -173,25 +187,44 @@ void gl_draw_line(GLContext *c,GLVertex *p1,GLVertex *p2)
  * We compute the point 'c' of intersection and the value of the parameter 't'
  * of the intersection if x=a+t(b-a). 
  */
-	 
+
+#ifndef SLL_DEBUG
 #define clip_func(name,sign,dir,dir1,dir2) \
-static float name(V4 *c,V4 *a,V4 *b) \
+static GLfloat name(V4 *c,V4 *a,V4 *b) \
 {\
-  float t,dX,dY,dZ,dW,den;\
-  dX = (b->X - a->X);\
-  dY = (b->Y - a->Y);\
-  dZ = (b->Z - a->Z);\
-  dW = (b->W - a->W);\
-  den = -(sign d ## dir) + dW;\
-  if (den == 0) t=0;\
-  else t = ( sign a->dir - a->W) / den;\
-  c->dir1 = a->dir1 + t * d ## dir1;\
-  c->dir2 = a->dir2 + t * d ## dir2;\
-  c->W = a->W + t * dW;\
+  GLfloat t,dX,dY,dZ,dW,den;\
+  dX = sllsub(b->X, a->X);\
+  dY = sllsub(b->Y, a->Y);\
+  dZ = sllsub(b->Z, a->Z);\
+  dW = sllsub(b->W, a->W);\
+  den = slladd(sllneg(sign d ## dir), dW);\
+  if (sllvalue(den) == sllvalue(int2sll(0))) t=int2sll(0);\
+  else t = slldiv(sllsub( sign a->dir, a->W), den);\
+  c->dir1 = slladd(a->dir1, sllmul(t, d ## dir1));\
+  c->dir2 = slladd(a->dir2, sllmul(t, d ## dir2));\
+  c->W = slladd(a->W, sllmul(t, dW));\
   c->dir = sign c->W;\
   return t;\
 }
-
+#else
+#define clip_func(name,sign,dir,dir1,dir2) \
+static GLfloat name(V4 *c,V4 *a,V4 *b) \
+{\
+  GLfloat t,dX,dY,dZ,dW,den;\
+  dX = sllsub(b->X, a->X);\
+  dY = sllsub(b->Y, a->Y);\
+  dZ = sllsub(b->Z, a->Z);\
+  dW = sllsub(b->W, a->W);\
+  den = slladd(sllneg(c->dir), dW);\
+  if (sllvalue(den) == sllvalue(int2sll(0))) t=int2sll(0);\
+  else t = slldiv(sllsub( a->dir, a->W), den);\
+  c->dir = c->W;\
+  c->dir1 = slladd(a->dir1, sllmul(t, d ## dir1));\
+  c->dir2 = slladd(a->dir2, sllmul(t, d ## dir2));\
+  c->W = slladd(a->W, sllmul(t, dW));\
+  return t;\
+}
+#endif
 
 clip_func(clip_xmin,-,X,Y,Z)
 
@@ -206,19 +239,37 @@ clip_func(clip_zmin,-,Z,X,Y)
 clip_func(clip_zmax,+,Z,X,Y)
 
 
-float (*clip_proc[6])(V4 *,V4 *,V4 *)=  {
+GLfloat (*clip_proc[6])(V4 *,V4 *,V4 *)=  {
     clip_xmin,clip_xmax,
     clip_ymin,clip_ymax,
     clip_zmin,clip_zmax
 };
 
 static inline void updateTmp(GLContext *c,
-			     GLVertex *q,GLVertex *p0,GLVertex *p1,float t)
+			     GLVertex *q,GLVertex *p0,GLVertex *p1,GLfloat t)
 {
   if (c->current_shade_model == GL_SMOOTH) {
-    q->color.v[0]=p0->color.v[0] + (p1->color.v[0]-p0->color.v[0])*t;
-    q->color.v[1]=p0->color.v[1] + (p1->color.v[1]-p0->color.v[1])*t;
-    q->color.v[2]=p0->color.v[2] + (p1->color.v[2]-p0->color.v[2])*t;
+    q->color.v[0]=slladd(
+		    p0->color.v[0],
+		    sllmul(
+			    sllsub(p1->color.v[0], p0->color.v[0]),
+			    t
+			)
+		  );
+    q->color.v[1]=slladd(
+		    p0->color.v[1],
+		    sllmul(
+			    sllsub(p1->color.v[1], p0->color.v[1]),
+			    t
+			)
+		  );
+    q->color.v[2]=slladd(
+		    p0->color.v[2],
+		    sllmul(
+			    sllsub(p1->color.v[2], p0->color.v[2]),
+			    t
+			)
+		  );
   } else {
     q->color.v[0]=p0->color.v[0];
     q->color.v[1]=p0->color.v[1];
@@ -226,8 +277,20 @@ static inline void updateTmp(GLContext *c,
   }
 
   if (c->texture_2d_enabled) {
-    q->tex_coord.X=p0->tex_coord.X + (p1->tex_coord.X-p0->tex_coord.X)*t;
-    q->tex_coord.Y=p0->tex_coord.Y + (p1->tex_coord.Y-p0->tex_coord.Y)*t;
+    q->tex_coord.X=slladd(
+		    p0->tex_coord.X,
+		    sllmul(
+			    sllsub(p1->tex_coord.X, p0->tex_coord.X),
+			    t
+			)
+		    );
+    q->tex_coord.Y=slladd(
+		    p0->tex_coord.Y,
+		    sllmul(
+			    sllsub(p1->tex_coord.Y, p0->tex_coord.Y),
+			    t
+			)
+		    );
   }
 
   q->clip_code=gl_clipcode(q->pc.X,q->pc.Y,q->pc.Z,q->pc.W);
@@ -242,7 +305,7 @@ void gl_draw_triangle(GLContext *c,
                       GLVertex *p0,GLVertex *p1,GLVertex *p2)
 {
   int co,c_and,cc[3],front;
-  float norm;
+  GLfloat norm;
   
   cc[0]=p0->clip_code;
   cc[1]=p1->clip_code;
@@ -253,12 +316,14 @@ void gl_draw_triangle(GLContext *c,
   /* we handle the non clipped case here to go faster */
   if (co==0) {
     
-      norm=(float)(p1->zp.x-p0->zp.x)*(float)(p2->zp.y-p0->zp.y)-
-        (float)(p2->zp.x-p0->zp.x)*(float)(p1->zp.y-p0->zp.y);
+      norm=sllsub(
+	      sllmul(int2sll(p1->zp.x-p0->zp.x), int2sll(p2->zp.y-p0->zp.y)) ,
+              sllmul(int2sll(p2->zp.x-p0->zp.x), int2sll(p1->zp.y-p0->zp.y))
+	     );
       
-      if (norm == 0) return;
+      if (sllvalue(norm) == sllvalue(int2sll(0))) return;
 
-      front = norm < 0.0;
+      front = sllvalue(norm) < sllvalue(int2sll(0));
       front = front ^ c->current_front_face;
   
       /* back face culling */
@@ -294,7 +359,7 @@ static void gl_draw_triangle_clip(GLContext *c,
 {
   int co,c_and,co1,cc[3],edge_flag_tmp,clip_mask;
   GLVertex tmp1,tmp2,*q[3];
-  float tt;
+  GLfloat tt;
   
   cc[0]=p0->clip_code;
   cc[1]=p1->clip_code;
@@ -376,35 +441,11 @@ void gl_draw_triangle_select(GLContext *c,
   gl_add_select1(c,p0->zp.z,p1->zp.z,p2->zp.z);
 }
 
-#ifdef PROFILE
-int count_triangles,count_triangles_textured,count_pixels;
-#endif
-
 void gl_draw_triangle_fill(GLContext *c,
                            GLVertex *p0,GLVertex *p1,GLVertex *p2)
 {
-#ifdef PROFILE
-  {
-    int norm;
-    assert(p0->zp.x >= 0 && p0->zp.x < c->zb->xsize);
-    assert(p0->zp.y >= 0 && p0->zp.y < c->zb->ysize);
-    assert(p1->zp.x >= 0 && p1->zp.x < c->zb->xsize);
-    assert(p1->zp.y >= 0 && p1->zp.y < c->zb->ysize);
-    assert(p2->zp.x >= 0 && p2->zp.x < c->zb->xsize);
-    assert(p2->zp.y >= 0 && p2->zp.y < c->zb->ysize);
-    
-    norm=(p1->zp.x-p0->zp.x)*(p2->zp.y-p0->zp.y)-
-      (p2->zp.x-p0->zp.x)*(p1->zp.y-p0->zp.y);
-    count_pixels+=abs(norm)/2;
-    count_triangles++;
-  }
-#endif
-    
   if (c->texture_2d_enabled) {
-#ifdef PROFILE
-    count_triangles_textured++;
-#endif
-    ZB_setTexture(c->zb,c->current_texture->images[0].pixmap);
+    ZB_setTexture(c->zb,(PIXEL *)c->current_texture->images[0].pixmap);
     ZB_fillTriangleMappingPerspective(c->zb,&p0->zp,&p1->zp,&p2->zp);
   } else if (c->current_shade_model == GL_SMOOTH) {
     ZB_fillTriangleSmooth(c->zb,&p0->zp,&p1->zp,&p2->zp);

@@ -1,7 +1,7 @@
 /*
- * Memory allocator for TinyGL
+ * Memory allocator for PicoGL
  */
-#include "zgl.h"
+#include <stdlib.h>
 
 /* modify these functions so that they suit your needs */
 

@@ -1,8 +1,8 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
 #include <stdio.h>
 /* glVertex */
 
-void glVertex4f(float x,float y,float z,float w)
+void glVertex4f(GLfloat x,GLfloat y,GLfloat z,GLfloat w)
 {
   GLParam p[5];
 
@@ -15,24 +15,24 @@ void glVertex4f(float x,float y,float z,float w)
   gl_add_op(p);
 }
 
-void glVertex2f(float x,float y) 
+void glVertex2f(GLfloat x,GLfloat y) 
 {
-  glVertex4f(x,y,0,1);
+  glVertex4f(x,y,int2sll(0),int2sll(1));
 }
 
-void glVertex3f(float x,float y,float z) 
+void glVertex3f(GLfloat x,GLfloat y,GLfloat z) 
 {
-  glVertex4f(x,y,z,1);
+  glVertex4f(x,y,z,int2sll(1));
 }
 
-void glVertex3fv(float *v) 
+void glVertex3fv(GLfloat *v) 
 {
-  glVertex4f(v[0],v[1],v[2],1);
+  glVertex4f(v[0],v[1],v[2],int2sll(1));
 }
 
 /* glNormal */
 
-void glNormal3f(float x,float y,float z)
+void glNormal3f(GLfloat x,GLfloat y,GLfloat z)
 {
   GLParam p[4];
 
@@ -44,14 +44,14 @@ void glNormal3f(float x,float y,float z)
   gl_add_op(p);
 }
 
-void glNormal3fv(float *v) 
+void glNormal3fv(GLfloat *v) 
 {
   glNormal3f(v[0],v[1],v[2]);
 }
 
 /* glColor */
 
-void glColor4f(float r,float g,float b,float a)
+void glColor4f(GLfloat r,GLfloat g,GLfloat b,GLfloat a)
 {
   GLParam p[8];
 
@@ -61,16 +61,31 @@ void glColor4f(float r,float g,float b,float a)
   p[3].f=b;
   p[4].f=a;
   /* direct convertion to integer to go faster if no shading */
-  p[5].ui = (unsigned int) (r * (ZB_POINT_RED_MAX - ZB_POINT_RED_MIN) + 
-                            ZB_POINT_RED_MIN);
-  p[6].ui = (unsigned int) (g * (ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN) + 
-                            ZB_POINT_GREEN_MIN);
-  p[7].ui = (unsigned int) (b * (ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN) + 
-                            ZB_POINT_BLUE_MIN);
+  p[5].ui = (unsigned int) (sll2int(
+			  	slladd(
+			  		sllmul(r,int2sll(ZB_POINT_RED_MAX - ZB_POINT_RED_MIN)),
+                            		int2sll(ZB_POINT_RED_MIN)
+				      )
+			           )
+		 	   );
+  p[6].ui = (unsigned int) (sll2int(
+			  	slladd(
+					sllmul(g, int2sll(ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN)),
+                            		int2sll(ZB_POINT_GREEN_MIN)
+				      )
+				   )
+		            );
+  p[7].ui = (unsigned int) (sll2int(
+			  	slladd(
+					sllmul(b, int2sll(ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN)), 
+                            		int2sll(ZB_POINT_BLUE_MIN)
+				      )
+				   )
+		            );
   gl_add_op(p);
 }
 
-void glColor4fv(float *v)
+void glColor4fv(GLfloat *v)
 {
   GLParam p[8];
 
@@ -80,29 +95,44 @@ void glColor4fv(float *v)
   p[3].f=v[2];
   p[4].f=v[3];
   /* direct convertion to integer to go faster if no shading */
-  p[5].ui = (unsigned int) (v[0] * (ZB_POINT_RED_MAX - ZB_POINT_RED_MIN) + 
-                            ZB_POINT_RED_MIN);
-  p[6].ui = (unsigned int) (v[1] * (ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN) + 
-                            ZB_POINT_GREEN_MIN);
-  p[7].ui = (unsigned int) (v[2] * (ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN) + 
-                            ZB_POINT_BLUE_MIN);
+  p[5].ui = (unsigned int) (sll2int(
+			  	slladd(
+			  		sllmul(v[0], int2sll(ZB_POINT_RED_MAX - ZB_POINT_RED_MIN)), 
+                            		int2sll(ZB_POINT_RED_MIN)
+				      )
+				    )
+		  	   );
+  p[6].ui = (unsigned int) (sll2int(
+			  	slladd(
+					sllmul(v[1], int2sll(ZB_POINT_GREEN_MAX - ZB_POINT_GREEN_MIN)), 
+                            		int2sll(ZB_POINT_GREEN_MIN)
+				      )
+				   )
+		           );
+  p[7].ui = (unsigned int) (sll2int(
+			  	slladd(
+					sllmul(v[2], int2sll(ZB_POINT_BLUE_MAX - ZB_POINT_BLUE_MIN)), 
+                            		int2sll(ZB_POINT_BLUE_MIN)
+				      )
+				    )
+		            );
   gl_add_op(p);
 }
 
-void glColor3f(float x,float y,float z) 
+void glColor3f(GLfloat x,GLfloat y,GLfloat z) 
 {
-  glColor4f(x,y,z,1);
+  glColor4f(x,y,z,int2sll(1));
 }
 
-void glColor3fv(float *v) 
+void glColor3fv(GLfloat *v) 
 {
-  glColor4f(v[0],v[1],v[2],1);
+  glColor4f(v[0],v[1],v[2],int2sll(1));
 }
 
 
 /* TexCoord */
 
-void glTexCoord4f(float s,float t,float r,float q)
+void glTexCoord4f(GLfloat s,GLfloat t,GLfloat r,GLfloat q)
 {
   GLParam p[5];
 
@@ -115,14 +145,14 @@ void glTexCoord4f(float s,float t,float r,float q)
   gl_add_op(p);
 }
 
-void glTexCoord2f(float s,float t)
+void glTexCoord2f(GLfloat s,GLfloat t)
 {
-  glTexCoord4f(s,t,0,1);
+  glTexCoord4f(s,t,int2sll(0),int2sll(1));
 }
 
-void glTexCoord2fv(float *v)
+void glTexCoord2fv(GLfloat *v)
 {
-  glTexCoord4f(v[0],v[1],0,1);
+  glTexCoord4f(v[0],v[1],int2sll(0),int2sll(1));
 }
 
 void glEdgeFlag(int flag)
@@ -251,7 +281,7 @@ void glMatrixMode(int mode)
   gl_add_op(p);
 }
 
-void glLoadMatrixf(const float *m)
+void glLoadMatrixf(const GLfloat *m)
 {
   GLParam p[17];
   int i;
@@ -271,7 +301,7 @@ void glLoadIdentity(void)
   gl_add_op(p);
 }
 
-void glMultMatrixf(const float *m)
+void glMultMatrixf(const GLfloat *m)
 {
   GLParam p[17];
   int i;
@@ -300,7 +330,7 @@ void glPopMatrix(void)
   gl_add_op(p);
 }
 
-void glRotatef(float angle,float x,float y,float z)
+void glRotatef(GLfloat angle,GLfloat x,GLfloat y,GLfloat z)
 {
   GLParam p[5];
 
@@ -313,7 +343,7 @@ void glRotatef(float angle,float x,float y,float z)
   gl_add_op(p);
 }
 
-void glTranslatef(float x,float y,float z)
+void glTranslatef(GLfloat x,GLfloat y,GLfloat z)
 {
   GLParam p[4];
 
@@ -325,7 +355,7 @@ void glTranslatef(float x,float y,float z)
   gl_add_op(p);
 }
 
-void glScalef(float x,float y,float z)
+void glScalef(GLfloat x,GLfloat y,GLfloat z)
 {
   GLParam p[4];
 
@@ -351,8 +381,8 @@ void glViewport(int x,int y,int width,int height)
   gl_add_op(p);
 }
 
-void glFrustum(double left,double right,double bottom,double top,
-               double near,double farv)
+void glFrustum(GLdouble left,GLdouble right,GLdouble bottom,GLdouble top,
+               GLdouble near,GLdouble farv)
 {
   GLParam p[7];
 
@@ -369,7 +399,7 @@ void glFrustum(double left,double right,double bottom,double top,
 
 /* lightening */
 
-void glMaterialfv(int mode,int type,float *v)
+void glMaterialfv(int mode,int type,GLfloat *v)
 {
   GLParam p[7];
   int i,n;
@@ -382,12 +412,12 @@ void glMaterialfv(int mode,int type,float *v)
   n=4;
   if (type == GL_SHININESS) n=1;
   for(i=0;i<4;i++) p[3+i].f=v[i];
-  for(i=n;i<4;i++) p[3+i].f=0;
+  for(i=n;i<4;i++) p[3+i].f=int2sll(0);
 
   gl_add_op(p);
 }
 
-void glMaterialf(int mode,int type,float v)
+void glMaterialf(int mode,int type,GLfloat v)
 {
   GLParam p[7];
   int i;
@@ -396,7 +426,7 @@ void glMaterialf(int mode,int type,float v)
   p[1].i=mode;
   p[2].i=type;
   p[3].f=v;
-  for(i=0;i<3;i++) p[4+i].f=0;
+  for(i=0;i<3;i++) p[4+i].f=int2sll(0);
 
   gl_add_op(p);
 }
@@ -412,7 +442,7 @@ void glColorMaterial(int mode,int type)
   gl_add_op(p);
 }
 
-void glLightfv(int light,int type,float *v)
+void glLightfv(int light,int type,GLfloat *v)
 {
   GLParam p[7];
   int i;
@@ -427,7 +457,7 @@ void glLightfv(int light,int type,float *v)
 }
 
 
-void glLightf(int light,int type,float v)
+void glLightf(int light,int type,GLfloat v)
 {
   GLParam p[7];
   int i;
@@ -436,7 +466,7 @@ void glLightf(int light,int type,float v)
   p[1].i=light;
   p[2].i=type;
   p[3].f=v;
-  for(i=0;i<3;i++) p[4+i].f=0;
+  for(i=0;i<3;i++) p[4+i].f=int2sll(0);
 
   gl_add_op(p);
 }
@@ -448,13 +478,13 @@ void glLightModeli(int pname,int param)
 
   p[0].op=OP_LightModel;
   p[1].i=pname;
-  p[2].f=(float)param;
-  for(i=0;i<3;i++) p[3+i].f=0;
+  p[2].f=int2sll(param);
+  for(i=0;i<3;i++) p[3+i].f=int2sll(0);
 
   gl_add_op(p);
 }
 
-void glLightModelfv(int pname,float *param)
+void glLightModelfv(int pname,GLfloat *param)
 {
   GLParam p[6];
   int i;
@@ -478,7 +508,7 @@ void glClear(int mask)
   gl_add_op(p);
 }
 
-void glClearColor(float r,float g,float b,float a)
+void glClearColor(GLfloat r,GLfloat g,GLfloat b,GLfloat a)
 {
   GLParam p[5];
 
@@ -491,7 +521,7 @@ void glClearColor(float r,float g,float b,float a)
   gl_add_op(p);
 }
 
-void glClearDepth(double depth)
+void glClearDepth(GLdouble depth)
 {
   GLParam p[2];
 
@@ -544,10 +574,10 @@ void glTexEnvi(int target,int pname,int param)
   p[1].i=target;
   p[2].i=pname;
   p[3].i=param;
-  p[4].f=0;
-  p[5].f=0;
-  p[6].f=0;
-  p[7].f=0;
+  p[4].f=int2sll(0);
+  p[5].f=int2sll(0);
+  p[6].f=int2sll(0);
+  p[7].f=int2sll(0);
 
   gl_add_op(p);
 }
@@ -560,10 +590,10 @@ void glTexParameteri(int target,int pname,int param)
   p[1].i=target;
   p[2].i=pname;
   p[3].i=param;
-  p[4].f=0;
-  p[5].f=0;
-  p[6].f=0;
-  p[7].f=0;
+  p[4].f=int2sll(0);
+  p[5].f=int2sll(0);
+  p[6].f=int2sll(0);
+  p[7].f=int2sll(0);
 
   gl_add_op(p);
 }

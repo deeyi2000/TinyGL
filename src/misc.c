@@ -1,4 +1,5 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
+
 #include "msghandling.h"
 
 void glopViewport(GLContext *c,GLParam *p)

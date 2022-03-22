@@ -14,10 +14,7 @@
 
 #include <GL/glx.h> 
 #include <GL/gl.h> 
-#include "ui.h"
-
-
-
+#include "picotk.h"
 
 static GLfloat Xrot, Xstep;
 static GLfloat Yrot, Ystep;

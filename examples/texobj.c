@@ -10,12 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <GL/glx.h> 
+#include <GL/glx.h>
 #include <GL/gl.h> 
-#include "ui.h"
+#include "picotk.h"
 
 static GLuint TexObj[2];
-static GLfloat Angle = 0.0f;
+static GLfloat Angle;
 
 static int cnt=0,v=0;
 
@@ -24,45 +24,45 @@ draw(void)
 {
   glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-  glColor3f(1.0, 1.0, 1.0);
+  glColor3f(int2sll(1), int2sll(1), int2sll(1));
 
   /* draw first polygon */
   glPushMatrix();
-  glTranslatef(-1.0, 0.0, 0.0);
-  glRotatef(Angle, 0.0, 0.0, 1.0);
+  glTranslatef(int2sll(-1), int2sll(0), int2sll(0));
+  glRotatef(Angle, int2sll(0), int2sll(0), int2sll(1));
   glBindTexture(GL_TEXTURE_2D, TexObj[v]);
 
   glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
-  glTexCoord2f(0.0, 0.0);
-  glVertex2f(-1.0, -1.0);
-  glTexCoord2f(1.0, 0.0);
-  glVertex2f(1.0, -1.0);
-  glTexCoord2f(1.0, 1.0);
-  glVertex2f(1.0, 1.0);
-  glTexCoord2f(0.0, 1.0);
-  glVertex2f(-1.0, 1.0);
+  glTexCoord2f(int2sll(0), int2sll(0));
+  glVertex2f(int2sll(-1), int2sll(-1));
+  glTexCoord2f(int2sll(1), int2sll(0));
+  glVertex2f(int2sll(1), int2sll(-1));
+  glTexCoord2f(int2sll(1), int2sll(1));
+  glVertex2f(int2sll(1), int2sll(1));
+  glTexCoord2f(int2sll(0), int2sll(1));
+  glVertex2f(int2sll(-1), int2sll(1));
   glEnd();
   glDisable(GL_TEXTURE_2D);
   glPopMatrix();
 
   /* draw second polygon */
   glPushMatrix();
-  glTranslatef(1.0, 0.0, 0.0);
-  glRotatef(Angle - 90.0, 0.0, 1.0, 0.0);
+  glTranslatef(int2sll(1), int2sll(0), int2sll(0));
+  glRotatef(sllsub(Angle, int2sll(90)), int2sll(0), int2sll(1), int2sll(0));
 
   glBindTexture(GL_TEXTURE_2D, TexObj[1-v]);
 
   glEnable(GL_TEXTURE_2D);
   glBegin(GL_QUADS);
-  glTexCoord2f(0.0, 0.0);
-  glVertex2f(-1.0, -1.0);
-  glTexCoord2f(1.0, 0.0);
-  glVertex2f(1.0, -1.0);
-  glTexCoord2f(1.0, 1.0);
-  glVertex2f(1.0, 1.0);
-  glTexCoord2f(0.0, 1.0);
-  glVertex2f(-1.0, 1.0);
+  glTexCoord2f(int2sll(0), int2sll(0));
+  glVertex2f(int2sll(-1), int2sll(-1));
+  glTexCoord2f(int2sll(1), int2sll(0));
+  glVertex2f(int2sll(1), int2sll(-1));
+  glTexCoord2f(int2sll(1), int2sll(1));
+  glVertex2f(int2sll(1), int2sll(1));
+  glTexCoord2f(int2sll(0), int2sll(1));
+  glVertex2f(int2sll(-1), int2sll(1));
   glEnd();
   glDisable(GL_TEXTURE_2D);
 
@@ -79,11 +79,11 @@ reshape(int width, int height)
   glViewport(0, 0, (GLint) width, (GLint) height);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  /* glOrtho( -3.0, 3.0, -3.0, 3.0, -10.0, 10.0 ); */
-  glFrustum(-2.0, 2.0, -2.0, 2.0, 6.0, 20.0);
+  /* glOrtho( int2sll(-3), int2sll(3), int2sll(-3), int2sll(3), int2sll(-10), int2sll(10) ); */
+  glFrustum(int2sll(-2), int2sll(2), int2sll(-2), int2sll(2), dbl2sll(6.0), int2sll(20));
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  glTranslatef(0.0, 0.0, -8.0);
+  glTranslatef(int2sll(0), int2sll(0), dbl2sll(-8.0));
 }
 
 
@@ -134,6 +134,13 @@ void bind_texture(int texobj,int image)
       }
     }
   }
+for(i=0;i <32; i++)
+{
+tex[i][0]=25; //color[image][0];
+tex[i][1]=25; //color[image][1];
+tex[i][2]=25; //color[image][2];
+}
+
   glTexImage2D(GL_TEXTURE_2D, 0, 3, width, height, 0,
     GL_RGB, GL_UNSIGNED_BYTE, tex);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -165,7 +172,7 @@ void
 idle(void)
 {
   
-  Angle += 2.0;
+  Angle = slladd(Angle, int2sll(2));
 
   if (++cnt==5) {
     cnt=0;
@@ -185,9 +192,9 @@ GLenum key(int k, GLenum mask)
    return GL_FALSE;
 }
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
+    Angle= int2sll(0);
     return ui_loop(argc, argv, "texobj");
 }
-
 

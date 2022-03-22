@@ -1,5 +1,5 @@
-#ifndef _tgl_osbuffer_h_
-#define _tgl_osbuffer_h_
+#ifndef OSCONTEXT_H
+#define OSCONTEXT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,4 +34,4 @@ ostgl_resize(ostgl_context * context,
 }
 #endif
 
-#endif /* _tgl_osbuffer_h_ */
+#endif /* OSCONTEXT_H */

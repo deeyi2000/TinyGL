@@ -1,41 +1,15 @@
 #include <stdlib.h>
-#include "zbuffer.h"
+#include <GL/gl.h>
+#include <GL/internal/zbuffer.h>
 
 #define ZCMP(z,zpix) ((z) >= (zpix))
 
 void ZB_fillTriangleFlat(ZBuffer *zb,
 			 ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
-#if TGL_FEATURE_RENDER_BITS == 24
-    unsigned char colorR, colorG, colorB;
-#else
     int color;
-#endif
 
 #define INTERP_Z
-
-#if TGL_FEATURE_RENDER_BITS == 24 
-
-#define DRAW_INIT()				\
-{						\
-  colorR=p2->r>>8; \
-  colorG=p2->g>>8; \
-  colorB=p2->b>>8; \
-}
-
-#define PUT_PIXEL(_a)		\
-{						\
-    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
-      pp[3 * _a]=colorR;\
-      pp[3 * _a + 1]=colorG;\
-      pp[3 * _a + 2]=colorB;\
-      pz[_a]=zz;				\
-    }\
-    z+=dzdx;					\
-}
-
-#else
 
 #define DRAW_INIT()				\
 {						\
@@ -51,9 +25,8 @@ void ZB_fillTriangleFlat(ZBuffer *zb,
     }						\
     z+=dzdx;					\
 }
-#endif /* TGL_FEATURE_RENDER_BITS == 24 */
 
-#include "ztriangle.h"
+#include "ztriangle.inc"
 }
 
 /*
@@ -64,37 +37,12 @@ void ZB_fillTriangleFlat(ZBuffer *zb,
 void ZB_fillTriangleSmooth(ZBuffer *zb,
 			   ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
-#if TGL_FEATURE_RENDER_BITS == 16
         int _drgbdx;
-#endif
 
 #define INTERP_Z
 #define INTERP_RGB
 
 #define SAR_RND_TO_ZERO(v,n) (v / (1<<n))
-
-#if TGL_FEATURE_RENDER_BITS == 24
-
-#define DRAW_INIT() 				\
-{						\
-}
-
-#define PUT_PIXEL(_a)				\
-{						\
-    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
-      pp[3 * _a]=or1 >> 8;\
-      pp[3 * _a + 1]=og1 >> 8;\
-      pp[3 * _a + 2]=ob1 >> 8;\
-      pz[_a]=zz;				\
-    }\
-    z+=dzdx;					\
-    og1+=dgdx;					\
-    or1+=drdx;					\
-    ob1+=dbdx;					\
-}
-
-#elif TGL_FEATURE_RENDER_BITS == 16
 
 #define DRAW_INIT() 				\
 {						\
@@ -147,28 +95,7 @@ void ZB_fillTriangleSmooth(ZBuffer *zb,
   }									   \
 }
 
-#else
-
-#define DRAW_INIT() 				\
-{						\
-}
-
-#define PUT_PIXEL(_a)				\
-{						\
-    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-    if (ZCMP(zz,pz[_a])) {				\
-      pp[_a] = RGB_TO_PIXEL(or1, og1, ob1);\
-      pz[_a]=zz;				\
-    }\
-    z+=dzdx;					\
-    og1+=dgdx;					\
-    or1+=drdx;					\
-    ob1+=dbdx;					\
-}
-
-#endif /* TGL_FEATURE_RENDER_BITS */
-
-#include "ztriangle.h"
+#include "ztriangle.inc"
 }
 
 void ZB_setTexture(ZBuffer *zb,PIXEL *texture)
@@ -189,26 +116,6 @@ void ZB_fillTriangleMapping(ZBuffer *zb,
   texture=zb->current_texture;			\
 }
 
-#if TGL_FEATURE_RENDER_BITS == 24
-
-#define PUT_PIXEL(_a)				\
-{						\
-   unsigned char *ptr;\
-   zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
-       ptr = texture + (((t & 0x3FC00000) | s) >> 14) * 3; \
-       pp[3 * _a]= ptr[0];\
-       pp[3 * _a + 1]= ptr[1];\
-       pp[3 * _a + 2]= ptr[2];\
-       pz[_a]=zz;				\
-    }						\
-    z+=dzdx;					\
-    s+=dsdx;					\
-    t+=dtdx;					\
-}
-
-#else
-
 #define PUT_PIXEL(_a)				\
 {						\
    zz=z >> ZB_POINT_Z_FRAC_BITS;		\
@@ -221,9 +128,8 @@ void ZB_fillTriangleMapping(ZBuffer *zb,
     t+=dtdx;					\
 }
 
-#endif
 
-#include "ztriangle.h"
+#include "ztriangle.inc"
 }
 
 /*
@@ -231,48 +137,30 @@ void ZB_fillTriangleMapping(ZBuffer *zb,
  * We use the gradient method to make less divisions.
  * TODO: pipeline the division
  */
-#if 1
 
 void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
                             ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
     PIXEL *texture;
-    float fdzdx,fndzdx,ndszdx,ndtzdx;
+    GLfloat fdzdx,fndzdx;
+    ffp ndszdx,ndtzdx;
 
 #define INTERP_Z
 #define INTERP_STZ
 
 #define NB_INTERP 8
+#define SLL_NB_INTERP int2sll(8)
+#define SLLLL_NB_INTERP int2ffp(8)
 
 #define DRAW_INIT()				\
 {						\
   texture=zb->current_texture;\
-  fdzdx=(float)dzdx;\
-  fndzdx=NB_INTERP * fdzdx;\
-  ndszdx=NB_INTERP * dszdx;\
-  ndtzdx=NB_INTERP * dtzdx;\
+  fdzdx=int2sll(dzdx);\
+  fndzdx=sllmul(SLL_NB_INTERP, fdzdx);\
+  ndszdx=ffpmul(SLLLL_NB_INTERP, dszdx);\
+  ndtzdx=ffpmul(SLLLL_NB_INTERP, dtzdx);\
 }
 
-
-#if TGL_FEATURE_RENDER_BITS == 24
-
-#define PUT_PIXEL(_a)				\
-{						\
-   unsigned char *ptr;\
-   zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
-       ptr = texture + (((t & 0x3FC00000) | (s & 0x003FC000)) >> 14) * 3;\
-       pp[3 * _a]= ptr[0];\
-       pp[3 * _a + 1]= ptr[1];\
-       pp[3 * _a + 2]= ptr[2];\
-       pz[_a]=zz;				\
-    }						\
-    z+=dzdx;					\
-    s+=dsdx;					\
-    t+=dtdx;					\
-}
-
-#else
 
 #define PUT_PIXEL(_a)				\
 {						\
@@ -287,7 +175,6 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
     t+=dtdx;					\
 }
 
-#endif
 
 #define DRAW_LINE()				\
 {						\
@@ -295,10 +182,11 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
   register PIXEL *pp;		\
   register unsigned int s,t,z,zz;	\
   register int n,dsdx,dtdx;		\
-  float sz,tz,fz,zinv; \
+  ffp sz,tz; \
+  GLfloat fz,zinv; \
   n=(x2>>16)-x1;                             \
-  fz=(float)z1;\
-  zinv=1.0 / fz;\
+  fz=int2sll(z1);\
+  zinv=slldiv(int2sll(1), fz);\
   pp=(PIXEL *)((char *)pp1 + x1 * PSZB); \
   pz=pz1+x1;					\
   z=z1;						\
@@ -306,15 +194,15 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
   tz=tz1;\
   while (n>=(NB_INTERP-1)) {						   \
     {\
-      float ss,tt;\
-      ss=(sz * zinv);\
-      tt=(tz * zinv);\
-      s=(int) ss;\
-      t=(int) tt;\
-      dsdx= (int)( (dszdx - ss*fdzdx)*zinv );\
-      dtdx= (int)( (dtzdx - tt*fdzdx)*zinv );\
-      fz+=fndzdx;\
-      zinv=1.0 / fz;\
+      ffp ss,tt;\
+      ss=ffpmul(sz, sll2ffp(zinv));\
+      tt=ffpmul(tz, sll2ffp(zinv));\
+      s=ffp2int(ss);\
+      t=ffp2int(tt);\
+      dsdx= ffp2int(ffpmul(ffpsub(dszdx, ffpmul(ss,sll2ffp(fdzdx))), sll2ffp(zinv)));\
+      dtdx= ffp2int(ffpmul(ffpsub(dtzdx, ffpmul(tt,sll2ffp(fdzdx))), sll2ffp(zinv)));\
+      fz=slladd(fz, fndzdx);\
+      zinv=slldiv(int2sll(1), fz);\
     }\
     PUT_PIXEL(0);							   \
     PUT_PIXEL(1);							   \
@@ -327,17 +215,17 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
     pz+=NB_INTERP;							   \
     pp=(PIXEL *)((char *)pp + NB_INTERP * PSZB);\
     n-=NB_INTERP;							   \
-    sz+=ndszdx;\
-    tz+=ndtzdx;\
+    sz=ffpadd(sz, ndszdx);\
+    tz=ffpadd(tz, ndtzdx);\
   }									   \
     {\
-      float ss,tt;\
-      ss=(sz * zinv);\
-      tt=(tz * zinv);\
-      s=(int) ss;\
-      t=(int) tt;\
-      dsdx= (int)( (dszdx - ss*fdzdx)*zinv );\
-      dtdx= (int)( (dtzdx - tt*fdzdx)*zinv );\
+      ffp ss,tt;\
+      ss=ffpmul(sz, sll2ffp(zinv));\
+      tt=ffpmul(tz, sll2ffp(zinv));\
+      s=ffp2int(ss);\
+      t=ffp2int(tt);\
+      dsdx= ffp2int(ffpmul(ffpsub(dszdx, ffpmul(ss,sll2ffp(fdzdx))), sll2ffp(zinv)));\
+      dtdx= ffp2int(ffpmul(ffpsub(dtzdx, ffpmul(tt,sll2ffp(fdzdx))), sll2ffp(zinv)));\
     }\
   while (n>=0) {							   \
     PUT_PIXEL(0);							   \
@@ -347,48 +235,6 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
   }									   \
 }
   
-#include "ztriangle.h"
+#include "ztriangle.inc"
 }
 
-#endif
-
-#if 0
-
-/* slow but exact version (only there for reference, incorrect for 24
-   bits) */
-
-void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
-                            ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
-{
-    PIXEL *texture;
-
-#define INTERP_Z
-#define INTERP_STZ
-
-#define DRAW_INIT()				\
-{						\
-  texture=zb->current_texture;			\
-}
-
-#define PUT_PIXEL(_a)				\
-{						\
-   float zinv; \
-   int s,t; \
-   zz=z >> ZB_POINT_Z_FRAC_BITS;		\
-     if (ZCMP(zz,pz[_a])) {				\
-       zinv= 1.0 / (float) z; \
-       s= (int) (sz * zinv); \
-       t= (int) (tz * zinv); \
-       pp[_a]=texture[((t & 0x3FC00000) | s) >> 14];	\
-       pz[_a]=zz;				\
-    }						\
-    z+=dzdx;					\
-    sz+=dszdx;					\
-    tz+=dtzdx;					\
-}
-
-#include "ztriangle.h"
-}
-
-
-#endif

@@ -4,6 +4,9 @@
 #ifndef GL_H
 #define GL_H
 
+#include <GL/internal/math-sll.h>
+#include <GL/internal/math-ffp.h>
+
 #define GL_VERSION_1_1 1
 
 #ifdef __cplusplus
@@ -668,8 +671,8 @@ typedef int		GLint;		/* 4-byte signed */
 typedef unsigned char	GLubyte;	/* 1-byte unsigned */
 typedef unsigned short	GLushort;	/* 2-byte unsigned */
 typedef unsigned int	GLuint;		/* 4-byte unsigned */
-typedef float		GLfloat;	/* single precision float */
-typedef double		GLdouble;	/* double precision float */
+typedef sll		GLfloat;	/* single precision GLfloat */
+typedef sll		GLdouble;	/* GLdouble precision GLfloat */
 typedef int GLsizei;
 
 /* functions */
@@ -685,28 +688,28 @@ void glBegin(int type);
 void glEnd(void);
 
 #define PROTO_GL1(name)				\
-void gl ## name ## 1f(float);	\
-void gl ## name ## 1d(double);	\
-void gl ## name ## 1fv(float *);		\
-void gl ## name ## 1dv(double *);
+void gl ## name ## 1f(GLfloat);	\
+void gl ## name ## 1d(GLdouble);	\
+void gl ## name ## 1fv(GLfloat *);		\
+void gl ## name ## 1dv(GLdouble *);
 
 #define PROTO_GL2(name)				\
-void gl ## name ## 2f(float ,float);	\
-void gl ## name ## 2d(double ,double);	\
-void gl ## name ## 2fv(float *);		\
-void gl ## name ## 2dv(double *);
+void gl ## name ## 2f(GLfloat ,GLfloat);	\
+void gl ## name ## 2d(GLdouble ,GLdouble);	\
+void gl ## name ## 2fv(GLfloat *);		\
+void gl ## name ## 2dv(GLdouble *);
 
 #define PROTO_GL3(name)				\
-void gl ## name ## 3f(float ,float ,float);	\
-void gl ## name ## 3d(double ,double ,double);	\
-void gl ## name ## 3fv(float *);		\
-void gl ## name ## 3dv(double *);
+void gl ## name ## 3f(GLfloat ,GLfloat ,GLfloat);	\
+void gl ## name ## 3d(GLdouble ,GLdouble ,GLdouble);	\
+void gl ## name ## 3fv(GLfloat *);		\
+void gl ## name ## 3dv(GLdouble *);
 
 #define PROTO_GL4(name)				\
-void gl ## name ## 4f(float ,float ,float, float );	\
-void gl ## name ## 4d(double ,double ,double, double );	\
-void gl ## name ## 4fv(float *);		\
-void gl ## name ## 4dv(double *);
+void gl ## name ## 4f(GLfloat ,GLfloat ,GLfloat, GLfloat );	\
+void gl ## name ## 4d(GLdouble ,GLdouble ,GLdouble, GLdouble );	\
+void gl ## name ## 4fv(GLfloat *);		\
+void gl ## name ## 4dv(GLdouble *);
 
 PROTO_GL2(Vertex)
 PROTO_GL3(Vertex)
@@ -726,18 +729,18 @@ void glEdgeFlag(int flag);
 
 /* matrix */
 void glMatrixMode(int mode);
-void glLoadMatrixf(const float *m);
+void glLoadMatrixf(const GLfloat *m);
 void glLoadIdentity(void);
-void glMultMatrixf(const float *m);
+void glMultMatrixf(const GLfloat *m);
 void glPushMatrix(void);
 void glPopMatrix(void);
-void glRotatef(float angle,float x,float y,float z);
-void glTranslatef(float x,float y,float z);
-void glScalef(float x,float y,float z);
+void glRotatef(GLfloat angle, GLfloat x,GLfloat y,GLfloat z);
+void glTranslatef(GLfloat x,GLfloat y,GLfloat z);
+void glScalef(GLfloat x,GLfloat y,GLfloat z);
 
 void glViewport(int x,int y,int width,int height);
-void glFrustum(double left,double right,double bottom,double top,
-               double near,double far);
+void glFrustum(GLdouble left,GLdouble right,GLdouble bottom,GLdouble top,
+               GLdouble near,GLdouble far);
 
 /* lists */
 unsigned int glGenLists(int range);
@@ -748,8 +751,8 @@ void glCallList(unsigned int list);
 
 /* clear */
 void glClear(int mask);
-void glClearColor(float r,float g,float b,float a);
-void glClearDepth(double depth);
+void glClearColor(GLfloat r,GLfloat g,GLfloat b,GLfloat a);
+void glClearDepth(GLdouble depth);
 
 /* selection */
 int glRenderMode(int mode);
@@ -773,21 +776,21 @@ void glPixelStorei(int pname,int param);
 
 /* lighting */
 
-void glMaterialfv(int mode,int type,float *v);
-void glMaterialf(int mode,int type,float v);
+void glMaterialfv(int mode,int type,GLfloat *v);
+void glMaterialf(int mode,int type,GLfloat v);
 void glColorMaterial(int mode,int type);
 
-void glLightfv(int light,int type,float *v);
-void glLightf(int light,int type,float v);
+void glLightfv(int light,int type,GLfloat *v);
+void glLightf(int light,int type,GLfloat v);
 void glLightModeli(int pname,int param);
-void glLightModelfv(int pname,float *param);
+void glLightModelfv(int pname,GLfloat *param);
 
 /* misc */
 
 void glFlush(void);
 void glHint(int target,int mode);
 void glGetIntegerv(int pname,int *params);
-void glGetFloatv(int pname, float *v);
+void glGetFloatv(int pname, GLfloat *v);
 void glFrontFace(int mode);
 
 /* opengl 1.2 arrays */
@@ -808,19 +811,19 @@ void glPolygonOffset(GLfloat factor, GLfloat units);
 
 /* not implemented, just added to compile  */
   /*
-inline void glPointSize(float) {}
-inline void glLineWidth(float) {}
+inline void glPointSize(GLfloat) {}
+inline void glLineWidth(GLfloat) {}
 inline void glDeleteLists(int, int) {}
 inline void glDepthFunc(int) {}
 inline void glBlendFunc(int, int) {}
 inline void glTexEnvf(int, int, int) {}
-inline void glOrtho(float,float,float,float,float,float){}
+inline void glOrtho(GLfloat,GLfloat,GLfloat,GLfloat,GLfloat,GLfloat){}
 inline void glVertex2i(int,int) {}
 inline void glDepthMask(int) {}
 inline void glFogi(int, int) {}
-inline void glFogfv(int, const float*) {}
-inline void glFogf(int, float) {}
-inline void glRasterPos2f(float, float) {}
+inline void glFogfv(int, const GLfloat*) {}
+inline void glFogf(int, GLfloat) {}
+inline void glRasterPos2f(GLfloat, GLfloat) {}
 inline void glPolygonStipple(void*) {}
 inline void glTexParameterf(int, int, int) {};
   */

@@ -6,11 +6,6 @@ CC= gcc
 CFLAGS= -g -Wall -O2
 LFLAGS=
 
-# for BeOS PPC
-#CC= mwcc
-#CFLAGS= -I. -i-
-#LFLAGS=
-
 #####################################################################
 # TinyGL configuration 
 
@@ -20,10 +15,7 @@ LFLAGS=
 # standard X11 GLX like API 
 TINYGL_USE_GLX=y
 
-# BEOS API
-#TINYGL_USE_BEOS=y
-
-# Micro Windows NanoX API
+# Nano-X API
 #TINYGL_USE_NANOX=y
 
 #####################################################################
@@ -76,7 +68,4 @@ GL_DEPS= ../lib/libTinyGL.a
 
 # UNIX systems
 DIRS= src examples
-
-# BeOS
-# DIRS= src BeOS
 

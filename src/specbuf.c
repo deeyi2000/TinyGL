@@ -1,23 +1,24 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
+
 #include "msghandling.h"
 #include <math.h>
 #include <stdlib.h>
 
-static void calc_buf(GLSpecBuf *buf, const float shininess)
+static void calc_buf(GLSpecBuf *buf, const GLfloat shininess)
 {
   int i;
-  float val, inc;
-  val = 0.0f;
-  inc = 1.0f/SPECULAR_BUFFER_SIZE;
+  GLfloat val, inc;
+  val = int2sll(0);
+  inc = slldiv(int2sll(1), int2sll(SPECULAR_BUFFER_SIZE));
   for (i = 0; i <= SPECULAR_BUFFER_SIZE; i++) {
-    buf->buf[i] = pow(val, shininess);
-    val += inc;
+    buf->buf[i] = sllpow(val, shininess);
+    val = slladd(val,inc);
   }
 }
 
 GLSpecBuf *
 specbuf_get_buffer(GLContext *c, const int shininess_i, 
-                   const float shininess)
+                   const GLfloat shininess)
 {
   GLSpecBuf *found, *oldest;
   found = oldest = c->specbuf_first;
@@ -33,7 +34,7 @@ specbuf_get_buffer(GLContext *c, const int shininess_i,
   }
   if (oldest == NULL || c->specbuf_num_buffers < MAX_SPECULAR_BUFFERS) {
     /* create new buffer */
-    GLSpecBuf *buf = gl_malloc(sizeof(GLSpecBuf));
+    GLSpecBuf *buf = (GLSpecBuf *)gl_malloc(sizeof(GLSpecBuf));
     if (!buf) gl_fatal_error("could not allocate specular buffer");
     c->specbuf_num_buffers++;
     buf->next = c->specbuf_first;

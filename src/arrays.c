@@ -1,4 +1,4 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
 #include <assert.h>
 #include <stdio.h>
 
@@ -21,7 +21,7 @@ glopArrayElement(GLContext *c, GLParam *param)
     p[1].f = c->color_array[i];
     p[2].f = c->color_array[i+1];
     p[3].f = c->color_array[i+2];
-    p[4].f = size > 3 ? c->color_array[i+3] : 1.0f;
+    p[4].f = size > 3 ? c->color_array[i+3] : int2sll(1);
     glopColor(c, p);  
   }
   if (states & NORMAL_ARRAY) {
@@ -29,15 +29,15 @@ glopArrayElement(GLContext *c, GLParam *param)
     c->current_normal.X = c->normal_array[i];
     c->current_normal.Y = c->normal_array[i+1];
     c->current_normal.Z = c->normal_array[i+2];
-    c->current_normal.Z = 0.0f;
+    c->current_normal.Z = int2sll(0);
   }
   if (states & TEXCOORD_ARRAY) {
     int size = c->texcoord_array_size;
     i = idx * (size + c->texcoord_array_stride);
     c->current_tex_coord.X = c->texcoord_array[i];
     c->current_tex_coord.Y = c->texcoord_array[i+1];
-    c->current_tex_coord.Z = size > 2 ? c->texcoord_array[i+2] : 0.0f;
-    c->current_tex_coord.W = size > 3 ? c->texcoord_array[i+3] : 1.0f;
+    c->current_tex_coord.Z = size > 2 ? c->texcoord_array[i+2] : int2sll(0);
+    c->current_tex_coord.W = size > 3 ? c->texcoord_array[i+3] : int2sll(1);
   }
   if (states & VERTEX_ARRAY) {
     GLParam p[5];
@@ -45,8 +45,8 @@ glopArrayElement(GLContext *c, GLParam *param)
     i = idx * (size + c->vertex_array_stride);
     p[1].f = c->vertex_array[i];
     p[2].f = c->vertex_array[i+1];
-    p[3].f = size > 2 ? c->vertex_array[i+2] : 0.0f;
-    p[4].f = size > 3 ? c->vertex_array[i+3] : 1.0f;
+    p[3].f = size > 2 ? c->vertex_array[i+2] : int2sll(0);
+    p[4].f = size > 3 ? c->vertex_array[i+3] : int2sll(1);
     glopVertex(c, p);
   }
 }
@@ -130,7 +130,7 @@ glopVertexPointer(GLContext *c, GLParam *p)
 {
   c->vertex_array_size = p[1].i;
   c->vertex_array_stride = p[2].i;
-  c->vertex_array = p[3].p;
+  c->vertex_array = (GLfloat *)p[3].p;
 }
 
 void 
@@ -151,7 +151,7 @@ glopColorPointer(GLContext *c, GLParam *p)
 {
   c->color_array_size = p[1].i;
   c->color_array_stride = p[2].i;
-  c->color_array = p[3].p;  
+  c->color_array = (GLfloat *)p[3].p;  
 }
 
 void 
@@ -171,7 +171,7 @@ void
 glopNormalPointer(GLContext *c, GLParam *p)
 {
   c->normal_array_stride = p[1].i;
-  c->normal_array = p[2].p;  
+  c->normal_array = (GLfloat *)p[2].p;  
 }
 
 void 
@@ -190,7 +190,7 @@ glopTexCoordPointer(GLContext *c, GLParam *p)
 {
   c->texcoord_array_size = p[1].i;
   c->texcoord_array_stride = p[2].i;
-  c->texcoord_array = p[3].p;
+  c->texcoord_array = (GLfloat *)p[3].p;
 }
 
 void 

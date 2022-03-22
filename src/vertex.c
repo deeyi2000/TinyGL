@@ -1,4 +1,5 @@
-#include "zgl.h"
+#include <string.h>
+#include <GL/internal/zgl.h>
 
 void glopNormal(GLContext * c, GLParam * p)
 {
@@ -11,7 +12,7 @@ void glopNormal(GLContext * c, GLParam * p)
     c->current_normal.X = v.X;
     c->current_normal.Y = v.Y;
     c->current_normal.Z = v.Z;
-    c->current_normal.W = 0;
+    c->current_normal.W = int2sll(0);
 }
 
 void glopTexCoord(GLContext * c, GLParam * p)
@@ -29,7 +30,6 @@ void glopEdgeFlag(GLContext * c, GLParam * p)
 
 void glopColor(GLContext * c, GLParam * p)
 {
-
     c->current_color.X = p[1].f;
     c->current_color.Y = p[2].f;
     c->current_color.Z = p[3].f;
@@ -37,7 +37,7 @@ void glopColor(GLContext * c, GLParam * p)
     c->longcurrent_color[0] = p[5].ui;
     c->longcurrent_color[1] = p[6].ui;
     c->longcurrent_color[2] = p[7].ui;
-
+    
     if (c->color_material_enabled) {
 	GLParam q[7];
 	q[0].op = OP_Material;
@@ -55,17 +55,22 @@ void glopColor(GLContext * c, GLParam * p)
 void gl_eval_viewport(GLContext * c)
 {
     GLViewport *v;
-    float zsize = (1 << (ZB_Z_BITS + ZB_POINT_Z_FRAC_BITS));
+    GLfloat zsize = int2sll(1 << (ZB_Z_BITS + ZB_POINT_Z_FRAC_BITS));
 
     v = &c->viewport;
 
-    v->trans.X = ((v->xsize - 0.5) / 2.0) + v->xmin;
-    v->trans.Y = ((v->ysize - 0.5) / 2.0) + v->ymin;
-    v->trans.Z = ((zsize - 0.5) / 2.0) + ((1 << ZB_POINT_Z_FRAC_BITS)) / 2;
+    GLfloat tmp05=float2sll(0.5);
+    GLfloat tmp20=int2sll(2);
+    GLfloat tmpx=int2sll(v->xsize);
+    GLfloat tmpy=int2sll(v->ysize);
 
-    v->scale.X = (v->xsize - 0.5) / 2.0;
-    v->scale.Y = -(v->ysize - 0.5) / 2.0;
-    v->scale.Z = -((zsize - 0.5) / 2.0);
+    v->trans.X = slladd(slldiv(sllsub(tmpx, tmp05), tmp20), int2sll(v->xmin));
+    v->trans.Y = slladd(slldiv(sllsub(tmpy, tmp05), tmp20), int2sll(v->ymin));
+    v->trans.Z = slladd(slldiv(sllsub(zsize, tmp05), tmp20), slldiv(int2sll(1 << ZB_POINT_Z_FRAC_BITS), tmp20));
+
+    v->scale.X = slldiv(sllsub(tmpx, tmp05), tmp20);
+    v->scale.Y = sllneg(slldiv(sllsub(tmpy, tmp05), tmp20));
+    v->scale.Z = sllneg(slldiv(sllsub(zsize, tmp05), tmp20));
 }
 
 void glopBegin(GLContext * c, GLParam * p)
@@ -88,14 +93,14 @@ void glopBegin(GLContext * c, GLParam * p)
 	    gl_M4_Inv(&tmp, c->matrix_stack_ptr[0]);
 	    gl_M4_Transpose(&c->matrix_model_view_inv, &tmp);
 	} else {
-	    float *m = &c->matrix_model_projection.m[0][0];
+	    GLfloat *m = &c->matrix_model_projection.m[0][0];
 	    /* precompute projection matrix */
 	    gl_M4_Mul(&c->matrix_model_projection,
 		      c->matrix_stack_ptr[1],
 		      c->matrix_stack_ptr[0]);
 	    /* test to accelerate computation */
 	    c->matrix_model_projection_no_w_transform = 0;
-	    if (m[12] == 0.0 && m[13] == 0.0 && m[14] == 0.0)
+	    if (sllvalue(m[12]) == sllvalue(int2sll(0)) && sllvalue(m[13]) == sllvalue(int2sll(0)) && sllvalue(m[14]) == sllvalue(int2sll(0)))
 		c->matrix_model_projection_no_w_transform = 1;
 	}
 
@@ -144,39 +149,110 @@ void glopBegin(GLContext * c, GLParam * p)
 /* TODO : handle all cases */
 static inline void gl_vertex_transform(GLContext * c, GLVertex * v)
 {
-    float *m;
+    GLfloat *m;
     V4 *n;
 
     if (c->lighting_enabled) {
 	/* eye coordinates needed for lighting */
 
 	m = &c->matrix_stack_ptr[0]->m[0][0];
-	v->ec.X = (v->coord.X * m[0] + v->coord.Y * m[1] +
-		   v->coord.Z * m[2] + m[3]);
-	v->ec.Y = (v->coord.X * m[4] + v->coord.Y * m[5] +
-		   v->coord.Z * m[6] + m[7]);
-	v->ec.Z = (v->coord.X * m[8] + v->coord.Y * m[9] +
-		   v->coord.Z * m[10] + m[11]);
-	v->ec.W = (v->coord.X * m[12] + v->coord.Y * m[13] +
-		   v->coord.Z * m[14] + m[15]);
+	v->ec.X = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[0]),
+					sllmul(v->coord.Y, m[1])
+				),
+		    		sllmul(v->coord.Z, m[2])
+			),
+		m[3]);
+	v->ec.Y = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[4]),
+					sllmul(v->coord.Y, m[5])
+				),
+		   		sllmul(v->coord.Z, m[6])
+			),
+		m[7]);
+	v->ec.Z = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[8]),
+					sllmul(v->coord.Y, m[9])
+				),
+		   		sllmul(v->coord.Z, m[10])
+			),
+		m[11]);
+	v->ec.W = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[12]),
+					sllmul(v->coord.Y, m[13])
+				),
+		   		sllmul(v->coord.Z, m[14])
+			),
+		m[15]);
 
 	/* projection coordinates */
 	m = &c->matrix_stack_ptr[1]->m[0][0];
-	v->pc.X = (v->ec.X * m[0] + v->ec.Y * m[1] +
-		   v->ec.Z * m[2] + v->ec.W * m[3]);
-	v->pc.Y = (v->ec.X * m[4] + v->ec.Y * m[5] +
-		   v->ec.Z * m[6] + v->ec.W * m[7]);
-	v->pc.Z = (v->ec.X * m[8] + v->ec.Y * m[9] +
-		   v->ec.Z * m[10] + v->ec.W * m[11]);
-	v->pc.W = (v->ec.X * m[12] + v->ec.Y * m[13] +
-		   v->ec.Z * m[14] + v->ec.W * m[15]);
+	v->pc.X = slladd(
+			slladd(
+				slladd(
+					sllmul(v->ec.X, m[0]),
+					sllmul(v->ec.Y, m[1])
+				),
+		   		sllmul(v->ec.Z, m[2])
+			),
+		sllmul(v->ec.W, m[3]));
+	v->pc.Y = slladd(
+			slladd(
+				slladd(
+					sllmul(v->ec.X, m[4]),
+					sllmul(v->ec.Y, m[5])
+				),
+		   		sllmul(v->ec.Z, m[6])
+			),
+		sllmul(v->ec.W, m[7]));
+	v->pc.Z = slladd(
+			slladd(
+				slladd(
+					sllmul(v->ec.X, m[8]),
+					sllmul(v->ec.Y, m[9])
+				),
+		   		sllmul(v->ec.Z, m[10])
+			),
+		sllmul(v->ec.W, m[11]));
+	v->pc.W = slladd(
+			slladd(
+				slladd(
+					sllmul(v->ec.X, m[12]),
+					sllmul(v->ec.Y, m[13])
+				),
+		   		sllmul(v->ec.Z, m[14])
+			),
+		sllmul(v->ec.W, m[15]));
 
 	m = &c->matrix_model_view_inv.m[0][0];
 	n = &c->current_normal;
 
-	v->normal.X = (n->X * m[0] + n->Y * m[1] + n->Z * m[2]);
-	v->normal.Y = (n->X * m[4] + n->Y * m[5] + n->Z * m[6]);
-	v->normal.Z = (n->X * m[8] + n->Y * m[9] + n->Z * m[10]);
+	v->normal.X = slladd(
+			slladd(
+				sllmul(n->X, m[0]),
+				sllmul(n->Y, m[1])
+			),
+			sllmul(n->Z, m[2]));
+	v->normal.Y = slladd(
+			slladd(
+				sllmul(n->X, m[4]),
+				sllmul(n->Y, m[5])
+			),
+			sllmul(n->Z, m[6]));
+	v->normal.Z = slladd(
+			slladd(
+				sllmul(n->X, m[8]),
+				sllmul(n->Y, m[9])
+			),
+			sllmul(n->Z, m[10]));
 
 	if (c->normalize_enabled) {
 	    gl_V3_Norm(&v->normal);
@@ -186,17 +262,45 @@ static inline void gl_vertex_transform(GLContext * c, GLVertex * v)
 	/* NOTE: W = 1 is assumed */
 	m = &c->matrix_model_projection.m[0][0];
 
-	v->pc.X = (v->coord.X * m[0] + v->coord.Y * m[1] +
-		   v->coord.Z * m[2] + m[3]);
-	v->pc.Y = (v->coord.X * m[4] + v->coord.Y * m[5] +
-		   v->coord.Z * m[6] + m[7]);
-	v->pc.Z = (v->coord.X * m[8] + v->coord.Y * m[9] +
-		   v->coord.Z * m[10] + m[11]);
+	v->pc.X = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[0]),
+					sllmul(v->coord.Y, m[1])
+				),
+		   		sllmul(v->coord.Z, m[2])
+			),
+		m[3]);
+	v->pc.Y = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[4]),
+					sllmul(v->coord.Y, m[5])
+				),
+		   		sllmul(v->coord.Z, m[6])
+			),
+		m[7]);
+	v->pc.Z = slladd(
+			slladd(
+				slladd(
+					sllmul(v->coord.X, m[8]),
+					sllmul(v->coord.Y, m[9])
+				),
+		   		sllmul(v->coord.Z, m[10])
+			),
+		m[11]);
 	if (c->matrix_model_projection_no_w_transform) {
 	    v->pc.W = m[15];
 	} else {
-	    v->pc.W = (v->coord.X * m[12] + v->coord.Y * m[13] +
-		       v->coord.Z * m[14] + m[15]);
+	    v->pc.W = slladd(
+			    slladd(
+				    slladd(
+					    sllmul(v->coord.X, m[12]),
+					    sllmul(v->coord.Y, m[13])
+					),
+		       			sllmul(v->coord.Z, m[14])
+				),
+			m[15]);
 	}
     }
 
@@ -219,7 +323,7 @@ void glopVertex(GLContext * c, GLParam * p)
     if (n >= c->vertex_max) {
 	GLVertex *newarray;
 	c->vertex_max <<= 1;	/* just double size */
-	newarray = gl_malloc(sizeof(GLVertex) * c->vertex_max);
+	newarray = (GLVertex *)gl_malloc(sizeof(GLVertex) * c->vertex_max);
 	if (!newarray) {
 	    gl_fatal_error("unable to allocate GLVertex array.\n");
 	}

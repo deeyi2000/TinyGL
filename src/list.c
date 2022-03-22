@@ -1,24 +1,24 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
 
 static char *op_table_str[]=
 {
 #define ADD_OP(a,b,c) "gl" #a " " #c,
 
-#include "opinfo.h"
+#include "GL/internal/opinfo.inc"
 };
 
 static void (*op_table_func[])(GLContext *,GLParam *)=
 {
 #define ADD_OP(a,b,c) glop ## a ,
 
-#include "opinfo.h"
+#include "GL/internal/opinfo.inc"
 };
 
 static int op_table_size[]=
 {
 #define ADD_OP(a,b,c) b + 1 ,
 
-#include "opinfo.h"
+#include "GL/internal/opinfo.inc"
 };
 
 
@@ -57,8 +57,8 @@ static GLList *alloc_list(GLContext *c,int list)
   GLList *l;
   GLParamBuffer *ob;
 
-  l=gl_zalloc(sizeof(GLList));
-  ob=gl_zalloc(sizeof(GLParamBuffer));
+  l=(GLList *)gl_zalloc(sizeof(GLList));
+  ob=(GLParamBuffer *)gl_zalloc(sizeof(GLParamBuffer));
 
   ob->next=NULL;
   l->first_op_buffer=ob;
@@ -83,7 +83,7 @@ void gl_print_op(FILE *f,GLParam *p)
       s++;
       switch (*s++) {
       case 'f':
-	fprintf(f,"%g",p[0].f);
+	fprintf(f,"%g",sll2dbl(p[0].f));
 	break;
       default:
 	fprintf(f,"%d",p[0].i);
@@ -113,7 +113,7 @@ void gl_compile_op(GLContext *c,GLParam *p)
   /* we should be able to add a NextBuffer opcode */
   if ((index + op_size) > (OP_BUFFER_MAX_SIZE-2)) {
 
-    ob1=gl_zalloc(sizeof(GLParamBuffer));
+    ob1=(GLParamBuffer *)gl_zalloc(sizeof(GLParamBuffer));
     ob1->next=NULL;
 
     ob->next=ob1;
@@ -136,7 +136,6 @@ void gl_add_op(GLParam *p)
 {
   GLContext *c=gl_get_context();
   int op;
-
   op=p[0].op;
   if (c->exec_flag) {
     op_table_func[op](c,p);

@@ -1,4 +1,4 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
 
 /*
  * image conversion
@@ -55,25 +55,25 @@ void gl_resizeImage(unsigned char *dest,int xsize_dest,int ysize_dest,
                     unsigned char *src,int xsize_src,int ysize_src)
 {
   unsigned char *pix,*pix_src;
-  float x1,y1,x1inc,y1inc;
+  GLfloat x1,y1,x1inc,y1inc,tmpINTER=int2sll(INTERP_NORM);
   int xi,yi,j,xf,yf,x,y;
 
   pix=dest;
   pix_src=src;
   
-  x1inc=(float) (xsize_src - 1) / (float) (xsize_dest - 1);
-  y1inc=(float) (ysize_src - 1) / (float) (ysize_dest - 1);
+  x1inc=slldiv(int2sll(xsize_src - 1), int2sll(xsize_dest - 1));
+  y1inc=slldiv(int2sll(ysize_src - 1), int2sll(ysize_dest - 1));
 
-  y1=0;
+  y1=int2sll(0);
   for(y=0;y<ysize_dest;y++) {
-    x1=0;
+    x1=int2sll(0);
     for(x=0;x<xsize_dest;x++) {
-      xi=(int) x1;
-      yi=(int) y1;
-      xf=(int) ((x1 - floor(x1)) * INTERP_NORM);
-      yf=(int) ((y1 - floor(y1)) * INTERP_NORM);
+      xi=sll2int(x1);
+      yi=sll2int(y1);
+      xf=sll2int(sllmul(sllsub(x1, int2sll(sll2int(x1))), tmpINTER));
+      yf=sll2int(sllmul(sllsub(y1, int2sll(sll2int(y1))), tmpINTER));
       
-      if ((xf+yf) <= INTERP_NORM) {
+      if (xf+yf <= INTERP_NORM) {
 	for(j=0;j<3;j++) {
 	  pix[j]=interpolate(pix_src[(yi*xsize_src+xi)*3+j],
 			     pix_src[(yi*xsize_src+xi+1)*3+j],
@@ -92,9 +92,9 @@ void gl_resizeImage(unsigned char *dest,int xsize_dest,int ysize_dest,
       }
       
       pix+=3;
-      x1+=x1inc;
+      x1=slladd(x1,x1inc);
     }
-    y1+=y1inc;
+    y1=slladd(y1,y1inc);
   }
 }
 
@@ -112,8 +112,8 @@ void gl_resizeImageNoInterpolate(unsigned char *dest,int xsize_dest,int ysize_de
   pix=dest;
   pix_src=src;
   
-  x1inc=(int)((float) ((xsize_src)<<FRAC_BITS) / (float) (xsize_dest));
-  y1inc=(int)((float) ((ysize_src)<<FRAC_BITS) / (float) (ysize_dest));
+  x1inc=sll2int(slldiv(int2sll((xsize_src)<<FRAC_BITS), int2sll(xsize_dest)));
+  y1inc=sll2int(slldiv(int2sll((ysize_src)<<FRAC_BITS), int2sll(ysize_dest)));
 
   y1=0;
   for(y=0;y<ysize_dest;y++) {

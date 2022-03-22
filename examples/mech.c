@@ -62,8 +62,8 @@
 #define GLUT_SPEC
 #include <GL/gl.h>
 #include <GL/glx.h>
-#include "glu.h"
-#include "ui.h"
+#include <GL/glu.h>
+#include "picotk.h"
 
 /* end of header files */
 

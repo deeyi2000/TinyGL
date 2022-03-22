@@ -1,11 +1,12 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
+
 #include "msghandling.h"
 
 void glopMaterial(GLContext *c,GLParam *p)
 {
   int mode=p[1].i;
   int type=p[2].i;
-  float *v=&p[3].f;
+  GLfloat *v=&p[3].f;
   int i;
   GLMaterial *m;
 
@@ -14,9 +15,8 @@ void glopMaterial(GLContext *c,GLParam *p)
     glopMaterial(c,p);
     mode=GL_BACK;
   }
-  if (mode == GL_FRONT) m=&c->materials[0];
-  else m=&c->materials[1];
-
+  m = &c->materials[(mode == GL_FRONT) ? 0 : 1];
+  
   switch(type) {
   case GL_EMISSION:
     for(i=0;i<4;i++)
@@ -36,7 +36,7 @@ void glopMaterial(GLContext *c,GLParam *p)
     break;
   case GL_SHININESS:
     m->shininess=v[0];
-    m->shininess_i = (v[0]/128.0f)*SPECULAR_BUFFER_RESOLUTION;
+    m->shininess_i = sll2int(sllmul(slldiv(v[0], int2sll(128)), int2sll(SPECULAR_BUFFER_RESOLUTION)));
     break;
   case GL_AMBIENT_AND_DIFFUSE:
     for(i=0;i<4;i++)
@@ -89,7 +89,7 @@ void glopLight(GLContext *c,GLParam *p)
 
       l->position=pos;
 
-      if (l->position.v[3] == 0) {
+      if (sllvalue(l->position.v[3]) == sllvalue(int2sll(0))) {
         l->norm_position.X=pos.X;
         l->norm_position.Y=pos.Y;
         l->norm_position.Z=pos.Z;
@@ -110,10 +110,11 @@ void glopLight(GLContext *c,GLParam *p)
     break;
   case GL_SPOT_CUTOFF:
     {
-      float a=v.v[0];
-      assert(a == 180 || (a>=0 && a<=90));
+#define SLL_M_PI dbl2sll(M_PI)
+      GLfloat a=v.v[0], tmp180=int2sll(180);
+      assert(sllvalue(a) == sllvalue(tmp180) || (sllvalue(a)>=sllvalue(int2sll(0)) && sllvalue(a)<=sllvalue(int2sll(90))));
       l->spot_cutoff=a;
-      if (a != 180) l->cos_spot_cutoff=cos(a * M_PI / 180.0);
+      if (sllvalue(a) != sllvalue(tmp180)) l->cos_spot_cutoff=sllcos(slldiv(sllmul(a, SLL_M_PI), tmp180));
     }
     break;
   case GL_CONSTANT_ATTENUATION:
@@ -134,7 +135,7 @@ void glopLight(GLContext *c,GLParam *p)
 void glopLightModel(GLContext *c,GLParam *p)
 {
   int pname=p[1].i;
-  float *v=&p[2].f;
+  GLfloat *v=&p[2].f;
   int i;
 
   switch(pname) {
@@ -143,10 +144,10 @@ void glopLightModel(GLContext *c,GLParam *p)
       c->ambient_light_model.v[i]=v[i];
     break;
   case GL_LIGHT_MODEL_LOCAL_VIEWER:
-    c->local_light_model=(int)v[0];
+    c->local_light_model=sll2int(v[0]);
     break;
   case GL_LIGHT_MODEL_TWO_SIDE:
-    c->light_model_two_side = (int)v[0];
+    c->light_model_two_side = sll2int(v[0]);
     break;
   default:
     tgl_warning("glopLightModel: illegal pname: 0x%x\n", pname);
@@ -156,10 +157,10 @@ void glopLightModel(GLContext *c,GLParam *p)
 }
 
 
-static inline float clampf(float a,float min,float max)
+static inline GLfloat clampf(GLfloat a,GLfloat min,GLfloat max)
 {
-  if (a<min) return min;
-  else if (a>max) return max;
+  if (sllvalue(a)<sllvalue(min)) return min;
+  else if (sllvalue(a)>sllvalue(max)) return max;
   else return a;
 }
 
@@ -182,11 +183,11 @@ void gl_enable_disable_light(GLContext *c,int light,int v)
 /* non optimized lightening model */
 void gl_shade_vertex(GLContext *c,GLVertex *v)
 {
-  float R,G,B,A;
+  GLfloat R,G,B,A;
   GLMaterial *m;
   GLLight *l;
   V3 n,s,d;
-  float dist,tmp,att,dot,dot_spot,dot_spec;
+  GLfloat dist,tmp,att,dot,dot_spot,dot_spec;
   int twoside = c->light_model_two_side;
 
   m=&c->materials[0];
@@ -195,61 +196,66 @@ void gl_shade_vertex(GLContext *c,GLVertex *v)
   n.Y=v->normal.Y;
   n.Z=v->normal.Z;
 
-  R=m->emission.v[0]+m->ambient.v[0]*c->ambient_light_model.v[0];
-  G=m->emission.v[1]+m->ambient.v[1]*c->ambient_light_model.v[1];
-  B=m->emission.v[2]+m->ambient.v[2]*c->ambient_light_model.v[2];
-  A=clampf(m->diffuse.v[3],0,1);
+  R=slladd(m->emission.v[0], sllmul(m->ambient.v[0], c->ambient_light_model.v[0]));
+  G=slladd(m->emission.v[1], sllmul(m->ambient.v[1], c->ambient_light_model.v[1]));
+  B=slladd(m->emission.v[2], sllmul(m->ambient.v[2], c->ambient_light_model.v[2]));
+  A=clampf(m->diffuse.v[3], int2sll(0), int2sll(1));
 
   for(l=c->first_light;l!=NULL;l=l->next) {
-    float lR,lB,lG;
+    GLfloat lR,lB,lG;
     
     /* ambient */
-    lR=l->ambient.v[0] * m->ambient.v[0];
-    lG=l->ambient.v[1] * m->ambient.v[1];
-    lB=l->ambient.v[2] * m->ambient.v[2];
+    lR=sllmul(l->ambient.v[0], m->ambient.v[0]);
+    lG=sllmul(l->ambient.v[1], m->ambient.v[1]);
+    lB=sllmul(l->ambient.v[2], m->ambient.v[2]);
 
-    if (l->position.v[3] == 0) {
+    if (sllvalue(l->position.v[3]) == sllvalue(int2sll(0))) {
       /* light at infinity */
       d.X=l->position.v[0];
       d.Y=l->position.v[1];
       d.Z=l->position.v[2];
-      att=1;
+      att=int2sll(1);
     } else {
       /* distance attenuation */
-      d.X=l->position.v[0]-v->ec.v[0];
-      d.Y=l->position.v[1]-v->ec.v[1];
-      d.Z=l->position.v[2]-v->ec.v[2];
-      dist=sqrt(d.X*d.X+d.Y*d.Y+d.Z*d.Z);
-      if (dist>1E-3) {
-        tmp=1/dist;
-        d.X*=tmp;
-        d.Y*=tmp;
-        d.Z*=tmp;
+      d.X=sllsub(l->position.v[0], v->ec.v[0]);
+      d.Y=sllsub(l->position.v[1], v->ec.v[1]);
+      d.Z=sllsub(l->position.v[2], v->ec.v[2]);
+      dist=sllsqrt(slladd(slladd(sllmul(d.X,d.X), sllmul(d.Y,d.Y)), sllmul(d.Z,d.Z)));
+      if (sllvalue(dist)>sllvalue(dbl2sll(1E-3))) {
+        tmp=slldiv(int2sll(1),dist);
+        d.X=sllmul(d.X, tmp);
+        d.Y=sllmul(d.Y, tmp);
+        d.Z=sllmul(d.Z, tmp);
       }
-      att=1.0f/(l->attenuation[0]+dist*(l->attenuation[1]+
-				     dist*l->attenuation[2]));
+      att=slldiv(int2sll(1), slladd(l->attenuation[0], 
+		sllmul(dist, slladd(l->attenuation[1],
+				sllmul(dist, l->attenuation[2])))));
     }
-    dot=d.X*n.X+d.Y*n.Y+d.Z*n.Z;
-    if (twoside && dot < 0) dot = -dot;
-    if (dot>0) {
+    dot=slladd(slladd(sllmul(d.X,n.X), sllmul(d.Y,n.Y)), sllmul(d.Z,n.Z));
+    if (twoside && sllvalue(dot) < sllvalue(int2sll(0))) dot = sllneg(dot);
+    if (sllvalue(dot)>sllvalue(int2sll(0))) {
       /* diffuse light */
-      lR+=dot * l->diffuse.v[0] * m->diffuse.v[0];
-      lG+=dot * l->diffuse.v[1] * m->diffuse.v[1];
-      lB+=dot * l->diffuse.v[2] * m->diffuse.v[2];
+      lR = slladd(lR, sllmul(sllmul(dot, l->diffuse.v[0]), m->diffuse.v[0]));
+      lG = slladd(lG, sllmul(sllmul(dot, l->diffuse.v[1]), m->diffuse.v[1]));
+      lB = slladd(lB, sllmul(sllmul(dot, l->diffuse.v[2]), m->diffuse.v[2]));
 
       /* spot light */
-      if (l->spot_cutoff != 180) {
-        dot_spot=-(d.X*l->norm_spot_direction.v[0]+
-                   d.Y*l->norm_spot_direction.v[1]+
-                   d.Z*l->norm_spot_direction.v[2]);
-        if (twoside && dot_spot < 0) dot_spot = -dot_spot;
-        if (dot_spot < l->cos_spot_cutoff) {
+      if (sllvalue(l->spot_cutoff) != sllvalue(int2sll(180))) {
+        dot_spot=sllneg(
+			slladd(
+				slladd(
+			 		sllmul(d.X,l->norm_spot_direction.v[0]),
+                   	 		sllmul(d.Y,l->norm_spot_direction.v[1])
+				),
+                   	 	sllmul(d.Z,l->norm_spot_direction.v[2])));
+        if (twoside && sllvalue(dot_spot) < sllvalue(int2sll(0))) dot_spot = sllneg(dot_spot);
+        if (sllvalue(dot_spot) < sllvalue(l->cos_spot_cutoff)) {
           /* no contribution */
           continue;
         } else {
           /* TODO: optimize */
-          if (l->spot_exponent > 0) {
-            att=att*pow(dot_spot,l->spot_exponent);
+          if (sllvalue(l->spot_exponent) > sllvalue(int2sll(0))) {
+            att=sllmul(att, sllpow(dot_spot,l->spot_exponent));
           }
         }
       }
@@ -262,45 +268,45 @@ void gl_shade_vertex(GLContext *c,GLVertex *v)
         vcoord.Y=v->ec.Y;
         vcoord.Z=v->ec.Z;
         gl_V3_Norm(&vcoord);
-        s.X=d.X-vcoord.X;
-        s.Y=d.Y-vcoord.X;
-        s.Z=d.Z-vcoord.X;
+        s.X=sllsub(d.X, vcoord.X);
+        s.Y=sllsub(d.Y, vcoord.X);
+        s.Z=sllsub(d.Z, vcoord.X);
       } else {
         s.X=d.X;
         s.Y=d.Y;
-        s.Z=d.Z+1.0;
+        s.Z=slladd(d.Z, int2sll(1));
       }
-      dot_spec=n.X*s.X+n.Y*s.Y+n.Z*s.Z;
-      if (twoside && dot_spec < 0) dot_spec = -dot_spec;
-      if (dot_spec>0) {
+      dot_spec=slladd(slladd(sllmul(n.X,s.X), sllmul(n.Y,s.Y)), sllmul(n.Z,s.Z));
+      if (twoside && sllvalue(dot_spec) < sllvalue(int2sll(0))) dot_spec = sllneg(dot_spec);
+      if (sllvalue(dot_spec)>sllvalue(int2sll(0))) {
         GLSpecBuf *specbuf;
         int idx;
-        tmp=sqrt(s.X*s.X+s.Y*s.Y+s.Z*s.Z);
-        if (tmp > 1E-3) {
-          dot_spec=dot_spec / tmp;
+        tmp=sllsqrt(slladd(slladd(sllmul(s.X,s.X), sllmul(s.Y,s.Y)), sllmul(s.Z,s.Z)));
+        if (sllvalue(tmp) > sllvalue(dbl2sll(1E-3))) {
+          dot_spec=slldiv(dot_spec, tmp);
         }
       
         /* TODO: optimize */
         /* testing specular buffer code */
         /* dot_spec= pow(dot_spec,m->shininess);*/
         specbuf = specbuf_get_buffer(c, m->shininess_i, m->shininess);
-        idx = (int)(dot_spec*SPECULAR_BUFFER_SIZE);
+        idx = sll2int(sllmul(dot_spec, int2sll(SPECULAR_BUFFER_SIZE)));
         if (idx > SPECULAR_BUFFER_SIZE) idx = SPECULAR_BUFFER_SIZE;
         dot_spec = specbuf->buf[idx];
-        lR+=dot_spec * l->specular.v[0] * m->specular.v[0];
-        lG+=dot_spec * l->specular.v[1] * m->specular.v[1];
-        lB+=dot_spec * l->specular.v[2] * m->specular.v[2];
+        lR=slladd(lR, sllmul(sllmul(dot_spec, l->specular.v[0]), m->specular.v[0]));
+        lG=slladd(lG, sllmul(sllmul(dot_spec, l->specular.v[1]), m->specular.v[1]));
+        lB=slladd(lB, sllmul(sllmul(dot_spec, l->specular.v[2]), m->specular.v[2]));
       }
     }
 
-    R+=att * lR;
-    G+=att * lG;
-    B+=att * lB;
+    R=slladd(R, sllmul(att, lR));
+    G=slladd(G, sllmul(att, lG));
+    B=slladd(B, sllmul(att, lB));
   }
 
-  v->color.v[0]=clampf(R,0,1);
-  v->color.v[1]=clampf(G,0,1);
-  v->color.v[2]=clampf(B,0,1);
+  v->color.v[0]=clampf(R, int2sll(0), int2sll(1));
+  v->color.v[1]=clampf(G, int2sll(0), int2sll(1));
+  v->color.v[2]=clampf(B, int2sll(0), int2sll(1));
   v->color.v[3]=A;
 }
 

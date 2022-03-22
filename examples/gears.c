@@ -6,7 +6,6 @@
  * Brian Paul
  */
 
-
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,12 +13,11 @@
 
 #include <GL/glx.h> 
 #include <GL/gl.h> 
-#include "ui.h"
+#include "picotk.h"
 
 #ifndef M_PI
 #  define M_PI 3.14159265
 #endif
-
 
 /*
  * Draw a gear wheel.  You'll probably want to call this function when

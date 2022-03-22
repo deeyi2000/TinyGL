@@ -1,4 +1,4 @@
-#include "zgl.h"
+#include <GL/internal/zgl.h>
 
 void glGetIntegerv(int pname,int *params)
 {
@@ -32,7 +32,7 @@ void glGetIntegerv(int pname,int *params)
   }
 }
 
-void glGetFloatv(int pname, float *v)
+void glGetFloatv(int pname, GLfloat *v)
 {
   int i;
   int mnr = 0; /* just a trick to return the correct matrix */
@@ -44,7 +44,7 @@ void glGetFloatv(int pname, float *v)
     mnr++; 
   case GL_MODELVIEW_MATRIX:
     {
-      float *p = &c->matrix_stack_ptr[mnr]->m[0][0];;
+      GLfloat *p = &c->matrix_stack_ptr[mnr]->m[0][0];;
       for (i = 0; i < 4; i++) {
         *v++ = p[0];
         *v++ = p[4];
@@ -55,16 +55,16 @@ void glGetFloatv(int pname, float *v)
     } 
     break;
   case GL_LINE_WIDTH:
-    *v = 1.0f;
+    *v = int2sll(1);
     break;
   case GL_LINE_WIDTH_RANGE:
-    v[0] = v[1] = 1.0f;
+    v[0] = v[1] = int2sll(1);
     break;
   case GL_POINT_SIZE:
-    *v = 1.0f;
+    *v = int2sll(1);
     break;
   case GL_POINT_SIZE_RANGE:
-    v[0] = v[1] = 1.0f;
+    v[0] = v[1] = int2sll(1);
   default:
     fprintf(stderr,"warning: unknown pname in glGetFloatv()\n");
     break;
